@@ -264,6 +264,7 @@ func dingtalkExchangeCode(
 
 // dingtalkFetchUserInfo 获取钉钉用户信息
 // 钉钉使用自定义 header: x-acs-dingtalk-access-token
+// 流程：先获取 unionId，再通过通讯录 API 获取 userId
 func dingtalkFetchUserInfo(
 	ctx context.Context,
 	cfg config.DingTalkOAuthConfig,
@@ -271,6 +272,7 @@ func dingtalkFetchUserInfo(
 ) (username string, subject string, err error) {
 	client := req.C().SetTimeout(30 * time.Second)
 
+	// Step 1: 获取用户基本信息（unionId）
 	resp, err := client.R().
 		SetContext(ctx).
 		SetHeader("x-acs-dingtalk-access-token", token.AccessToken).
@@ -284,7 +286,95 @@ func dingtalkFetchUserInfo(
 		return "", "", fmt.Errorf("userinfo status=%d body=%s", resp.StatusCode, truncateDingTalkLogValue(resp.String(), 512))
 	}
 
-	return dingtalkParseUserInfo(resp.String(), cfg)
+	body := resp.String()
+	log.Printf("[DingTalk OAuth] userinfo response: %s", truncateDingTalkLogValue(body, 1024))
+
+	unionId := strings.TrimSpace(firstNonEmptyDingTalk(
+		getGJSONDingTalk(body, "unionId"),
+		getGJSONDingTalk(body, "openId"),
+	))
+	if unionId == "" {
+		return "", "", errors.New("userinfo missing unionId/openId")
+	}
+
+	// Step 2: 获取企业内部应用 access_token
+	appToken, err := dingtalkGetAppAccessToken(ctx, cfg)
+	if err != nil {
+		log.Printf("[DingTalk OAuth] get app access token failed: %v, fallback to unionId", err)
+		// 获取应用 token 失败，降级使用 unionId
+		return unionId, unionId, nil
+	}
+
+	// Step 3: 通过 unionId 获取 userId
+	userId, err := dingtalkGetUserIdByUnionId(ctx, appToken, unionId)
+	if err != nil {
+		log.Printf("[DingTalk OAuth] get userId by unionId failed: %v, fallback to unionId", err)
+		// 获取 userId 失败，降级使用 unionId
+		return unionId, unionId, nil
+	}
+
+	log.Printf("[DingTalk OAuth] resolved userId=%s from unionId=%s", userId, unionId)
+	return userId, userId, nil
+}
+
+// dingtalkGetAppAccessToken 获取钉钉企业内部应用的 access_token
+func dingtalkGetAppAccessToken(ctx context.Context, cfg config.DingTalkOAuthConfig) (string, error) {
+	client := req.C().SetTimeout(15 * time.Second)
+
+	resp, err := client.R().
+		SetContext(ctx).
+		SetHeader("Content-Type", "application/json").
+		SetHeader("Accept", "application/json").
+		SetBody(map[string]string{
+			"appKey":    cfg.ClientID,
+			"appSecret": cfg.ClientSecret,
+		}).
+		Post("https://api.dingtalk.com/v1.0/oauth2/accessToken")
+
+	if err != nil {
+		return "", fmt.Errorf("request app access token: %w", err)
+	}
+	if !resp.IsSuccessState() {
+		return "", fmt.Errorf("app token status=%d body=%s", resp.StatusCode, truncateDingTalkLogValue(resp.String(), 512))
+	}
+
+	accessToken := strings.TrimSpace(getGJSONDingTalk(resp.String(), "accessToken"))
+	if accessToken == "" {
+		return "", errors.New("empty app access token in response")
+	}
+	return accessToken, nil
+}
+
+// dingtalkGetUserIdByUnionId 通过 unionId 获取企业内部 userId
+func dingtalkGetUserIdByUnionId(ctx context.Context, appAccessToken, unionId string) (string, error) {
+	client := req.C().SetTimeout(15 * time.Second)
+
+	resp, err := client.R().
+		SetContext(ctx).
+		SetHeader("Content-Type", "application/json").
+		SetHeader("Accept", "application/json").
+		SetQueryParam("access_token", appAccessToken).
+		SetBody(map[string]string{
+			"unionid": unionId,
+		}).
+		Post("https://oapi.dingtalk.com/topapi/user/getbyunionid")
+
+	if err != nil {
+		return "", fmt.Errorf("request getbyunionid: %w", err)
+	}
+
+	body := resp.String()
+	errCode := getGJSONDingTalk(body, "errcode")
+	if errCode != "0" {
+		errMsg := getGJSONDingTalk(body, "errmsg")
+		return "", fmt.Errorf("getbyunionid errcode=%s errmsg=%s", errCode, errMsg)
+	}
+
+	userId := strings.TrimSpace(getGJSONDingTalk(body, "result.userid"))
+	if userId == "" {
+		return "", errors.New("empty userid in getbyunionid response")
+	}
+	return userId, nil
 }
 
 func dingtalkParseUserInfo(body string, cfg config.DingTalkOAuthConfig) (username string, subject string, err error) {
