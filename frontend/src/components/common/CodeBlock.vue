@@ -7,7 +7,7 @@
         class="text-sm text-gray-400 transition-colors hover:text-white"
         :class="{ 'text-green-400': copied }"
       >
-        {{ copied ? copiedText : copyText }}
+        {{ copied ? displayCopiedText : displayCopyText }}
       </button>
     </div>
     <pre class="overflow-x-auto p-4 text-sm text-green-400"><code>{{ code }}</code></pre>
@@ -15,7 +15,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -36,8 +36,8 @@ const props = withDefaults(
 
 const copied = ref(false)
 
-const displayCopyText = ref(props.copyText || t('guide.copy'))
-const displayCopiedText = ref(props.copiedText || t('guide.copied'))
+const displayCopyText = computed(() => props.copyText || t('guide.copy'))
+const displayCopiedText = computed(() => props.copiedText || t('guide.copied'))
 
 async function copyCode() {
   try {
