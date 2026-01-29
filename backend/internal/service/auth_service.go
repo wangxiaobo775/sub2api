@@ -376,8 +376,11 @@ func (s *AuthService) LoginOrRegisterOAuth(ctx context.Context, email, username 
 	user, err := s.userRepo.GetByEmail(ctx, email)
 	if err != nil {
 		if errors.Is(err, ErrUserNotFound) {
-			// OAuth 首次登录视为注册（fail-close：settingService 未配置时不允许注册）
-			if s.settingService == nil || !s.settingService.IsRegistrationEnabled(ctx) {
+			// OAuth 首次登录创建新用户
+			// 注意：OAuth 登录不受普通注册开关 (registration_enabled) 限制
+			// 管理员通过启用对应的 OAuth 开关已表明允许该渠道用户登录/注册
+			// 只检查 settingService 是否可用（防止配置加载失败场景）
+			if s.settingService == nil {
 				return "", nil, ErrRegDisabled
 			}
 
