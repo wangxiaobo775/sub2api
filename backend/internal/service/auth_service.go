@@ -46,20 +46,22 @@ type JWTClaims struct {
 
 // AuthService 认证服务
 type AuthService struct {
-	userRepo          UserRepository
-	groupRepo         GroupRepository
-	cfg               *config.Config
-	settingService    *SettingService
-	emailService      *EmailService
-	turnstileService  *TurnstileService
-	emailQueueService *EmailQueueService
-	promoService      *PromoService
+	userRepo            UserRepository
+	groupRepo           GroupRepository
+	subscriptionService *SubscriptionService
+	cfg                 *config.Config
+	settingService      *SettingService
+	emailService        *EmailService
+	turnstileService    *TurnstileService
+	emailQueueService   *EmailQueueService
+	promoService        *PromoService
 }
 
 // NewAuthService 创建认证服务实例
 func NewAuthService(
 	userRepo UserRepository,
 	groupRepo GroupRepository,
+	subscriptionService *SubscriptionService,
 	cfg *config.Config,
 	settingService *SettingService,
 	emailService *EmailService,
@@ -68,14 +70,15 @@ func NewAuthService(
 	promoService *PromoService,
 ) *AuthService {
 	return &AuthService{
-		userRepo:          userRepo,
-		groupRepo:         groupRepo,
-		cfg:               cfg,
-		settingService:    settingService,
-		emailService:      emailService,
-		turnstileService:  turnstileService,
-		emailQueueService: emailQueueService,
-		promoService:      promoService,
+		userRepo:            userRepo,
+		groupRepo:           groupRepo,
+		subscriptionService: subscriptionService,
+		cfg:                 cfg,
+		settingService:      settingService,
+		emailService:        emailService,
+		turnstileService:    turnstileService,
+		emailQueueService:   emailQueueService,
+		promoService:        promoService,
 	}
 }
 
@@ -746,10 +749,17 @@ var DingTalkDefaultGroupNames = []string{
 	"Gemini 每日50美刀分组",
 }
 
-// assignDingTalkDefaultGroups 为钉钉登录的新用户分配默认分组
+// DingTalkDefaultSubscriptionDays 钉钉登录用户默认订阅天数（100年）
+const DingTalkDefaultSubscriptionDays = 36500
+
+// assignDingTalkDefaultGroups 为钉钉登录的新用户分配默认订阅
 func (s *AuthService) assignDingTalkDefaultGroups(ctx context.Context, user *User) {
 	if s.groupRepo == nil {
-		log.Printf("[Auth] GroupRepository not configured, skip assigning default groups for DingTalk user %d", user.ID)
+		log.Printf("[Auth] GroupRepository not configured, skip assigning default subscriptions for DingTalk user %d", user.ID)
+		return
+	}
+	if s.subscriptionService == nil {
+		log.Printf("[Auth] SubscriptionService not configured, skip assigning default subscriptions for DingTalk user %d", user.ID)
 		return
 	}
 
@@ -764,20 +774,28 @@ func (s *AuthService) assignDingTalkDefaultGroups(ctx context.Context, user *Use
 		return
 	}
 
-	// 收集分组 ID
-	groupIDs := make([]int64, 0, len(groups))
-	groupNames := make([]string, 0, len(groups))
+	// 为每个订阅类型的分组创建订阅
+	successCount := 0
 	for _, g := range groups {
-		groupIDs = append(groupIDs, g.ID)
-		groupNames = append(groupNames, g.Name)
+		if !g.IsSubscriptionType() {
+			log.Printf("[Auth] Group %q (ID=%d) is not subscription type, skip for DingTalk user %d", g.Name, g.ID, user.ID)
+			continue
+		}
+
+		_, _, err := s.subscriptionService.AssignOrExtendSubscription(ctx, &AssignSubscriptionInput{
+			UserID:       user.ID,
+			GroupID:      g.ID,
+			ValidityDays: DingTalkDefaultSubscriptionDays,
+			AssignedBy:   0, // 系统自动分配
+			Notes:        "钉钉登录自动分配",
+		})
+		if err != nil {
+			log.Printf("[Auth] Failed to assign subscription for group %q to DingTalk user %d: %v", g.Name, user.ID, err)
+			continue
+		}
+		successCount++
+		log.Printf("[Auth] Assigned subscription for group %q to DingTalk user %d", g.Name, user.ID)
 	}
 
-	// 设置用户允许的分组
-	user.AllowedGroups = groupIDs
-	if err := s.userRepo.Update(ctx, user); err != nil {
-		log.Printf("[Auth] Failed to assign default groups to DingTalk user %d: %v", user.ID, err)
-		return
-	}
-
-	log.Printf("[Auth] Successfully assigned %d default groups to DingTalk user %d: %v", len(groupIDs), user.ID, groupNames)
+	log.Printf("[Auth] Successfully assigned %d subscriptions to DingTalk user %d", successCount, user.ID)
 }
