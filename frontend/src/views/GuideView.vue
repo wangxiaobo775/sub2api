@@ -146,10 +146,34 @@
               {{ platformNames[activePlatform] }} {{ t('guide.tutorial') }}
             </h3>
 
+            <!-- Step 0: Install Git (Windows only) -->
+            <div v-if="activePlatform === 'windows'" class="mb-8">
+              <h4 class="mb-4 flex items-center text-xl font-semibold text-gray-800 dark:text-gray-200">
+                <span class="mr-3 flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">0</span>
+                {{ t('guide.installGit') }}
+              </h4>
+              <div class="rounded-lg bg-gray-50 p-6 dark:bg-dark-700">
+                <p class="mb-4 text-gray-700 dark:text-gray-300">
+                  <strong>{{ t('guide.method1') }}{{ t('guide.officialInstaller') }}{{ t('guide.recommended') }}</strong>
+                </p>
+                <ol class="mb-4 ml-4 list-inside list-decimal space-y-2 text-gray-700 dark:text-gray-300">
+                  <li>{{ t('guide.visitGit') }} <a href="https://git-scm.com/download/win" target="_blank" class="text-blue-600 hover:underline">https://git-scm.com/download/win</a></li>
+                  <li>{{ t('guide.downloadGitInstaller') }}</li>
+                  <li>{{ t('guide.runGitInstaller') }}</li>
+                </ol>
+
+                <p class="mb-3 mt-6 text-gray-700 dark:text-gray-300"><strong>{{ t('guide.method2') }}{{ t('guide.packageManager') }}</strong></p>
+                <CodeBlock :code="'# 使用 Winget\nwinget install Git.Git\n\n# 或使用 Chocolatey\nchoco install git\n\n# 或使用 Scoop\nscoop install git'" :title="'PowerShell'" />
+
+                <p class="mb-3 mt-6 text-gray-700 dark:text-gray-300"><strong>{{ t('guide.verifyInstall') }}</strong></p>
+                <CodeBlock :code="'git --version'" :title="'CMD/PowerShell'" />
+              </div>
+            </div>
+
             <!-- Step 1: Install Node.js -->
             <div class="mb-8">
               <h4 class="mb-4 flex items-center text-xl font-semibold text-gray-800 dark:text-gray-200">
-                <span class="mr-3 flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">1</span>
+                <span class="mr-3 flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">{{ activePlatform === 'windows' ? '1' : '1' }}</span>
                 {{ t('guide.installNodejs') }}
               </h4>
               <div class="rounded-lg bg-gray-50 p-6 dark:bg-dark-700">
@@ -164,7 +188,18 @@
 
                 <template v-if="activePlatform === 'windows'">
                   <p class="mb-3 mt-6 text-gray-700 dark:text-gray-300"><strong>{{ t('guide.method2') }}{{ t('guide.packageManager') }}</strong></p>
-                  <CodeBlock :code="'winget install OpenJS.NodeJS.LTS'" :title="'PowerShell'" />
+                  <CodeBlock :code="'# 使用 Winget\nwinget install OpenJS.NodeJS.LTS\n\n# 或使用 Chocolatey\nchoco install nodejs\n\n# 或使用 Scoop\nscoop install nodejs'" :title="'PowerShell'" />
+
+                  <!-- Windows 注意事项 -->
+                  <div class="mt-6 rounded-r-lg border-l-4 border-yellow-400 bg-yellow-50 p-4 dark:bg-yellow-900/20">
+                    <p class="mb-2 font-semibold text-yellow-800 dark:text-yellow-300">{{ t('guide.windowsNotes') }}</p>
+                    <ul class="space-y-1 text-sm text-yellow-700 dark:text-yellow-300">
+                      <li>• {{ t('guide.usePowerShell') }}</li>
+                      <li>• {{ t('guide.runAsAdmin') }}</li>
+                      <li>• {{ t('guide.antivirusWhitelist') }}</li>
+                      <li>• {{ t('guide.restartTerminal') }}</li>
+                    </ul>
+                  </div>
                 </template>
 
                 <template v-if="activePlatform === 'macos'">
@@ -211,7 +246,6 @@
                     <li>• {{ t('guide.clickAddToken') }}</li>
                     <li>• <strong>{{ t('guide.selectGroup') }}Claude Code{{ t('guide.dedicated') }}{{ t('guide.mustSelect') }}</strong></li>
                     <li>• {{ t('guide.tokenName') }}</li>
-                    <li>• {{ t('guide.quotaSuggestion') }}</li>
                   </ul>
                 </div>
 
@@ -255,6 +289,44 @@
                     <li>• {{ t('guide.trustWorkDir') }}</li>
                     <li>• {{ t('guide.startCodingNote') }}</li>
                   </ul>
+                </div>
+              </div>
+            </div>
+
+            <!-- Windows FAQ -->
+            <div v-if="activePlatform === 'windows'" class="mt-8 rounded-2xl border border-amber-200 bg-amber-50 p-6 dark:border-amber-800 dark:bg-amber-900/20">
+              <h4 class="mb-4 flex items-center text-xl font-semibold text-amber-800 dark:text-amber-200">
+                <svg class="mr-2 h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {{ t('guide.windowsFaq') }}
+              </h4>
+
+              <div class="space-y-4">
+                <!-- Permission Error -->
+                <div class="rounded-lg bg-white p-4 dark:bg-dark-800">
+                  <h5 class="mb-2 font-semibold text-gray-800 dark:text-gray-200">{{ t('guide.faqPermissionError') }}</h5>
+                  <p class="mb-2 text-sm text-gray-600 dark:text-gray-400">{{ t('guide.faqPermissionSolution') }}</p>
+                  <CodeBlock :code="'# 以管理员身份运行 PowerShell\n# 或者配置 npm 使用用户目录\nnpm config set prefix %APPDATA%\\npm'" title="PowerShell" />
+                </div>
+
+                <!-- Execution Policy Error -->
+                <div class="rounded-lg bg-white p-4 dark:bg-dark-800">
+                  <h5 class="mb-2 font-semibold text-gray-800 dark:text-gray-200">{{ t('guide.faqExecutionPolicy') }}</h5>
+                  <p class="mb-2 text-sm text-gray-600 dark:text-gray-400">{{ t('guide.faqExecutionPolicySolution') }}</p>
+                  <CodeBlock :code="'Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser'" title="PowerShell" />
+                </div>
+
+                <!-- Environment Variable Not Working -->
+                <div class="rounded-lg bg-white p-4 dark:bg-dark-800">
+                  <h5 class="mb-2 font-semibold text-gray-800 dark:text-gray-200">{{ t('guide.faqEnvNotWorking') }}</h5>
+                  <p class="mb-2 text-sm text-gray-600 dark:text-gray-400">{{ t('guide.faqEnvNotWorkingSolution') }}</p>
+                  <ul class="ml-4 list-inside list-disc text-sm text-gray-600 dark:text-gray-400">
+                    <li>{{ t('guide.faqRestartPowerShell') }}</li>
+                    <li>{{ t('guide.faqLogoutLogin') }}</li>
+                    <li>{{ t('guide.faqVerifyEnv') }}</li>
+                  </ul>
+                  <CodeBlock :code="'# 验证环境变量\necho $env:ANTHROPIC_BASE_URL\necho $env:ANTHROPIC_AUTH_TOKEN'" title="PowerShell" class="mt-2" />
                 </div>
               </div>
             </div>

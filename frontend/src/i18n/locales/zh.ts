@@ -119,7 +119,29 @@ export default {
     startUsingGemini: '开始使用 Gemini CLI！',
     largeContext: '超大上下文窗口：1M tokens',
     agentMode: 'Agent Mode 自动规划任务',
-    googleSearch: 'Google Search 实时联网'
+    googleSearch: 'Google Search 实时联网',
+    // Git installation
+    installGit: '安装 Git',
+    visitGit: '访问',
+    downloadGitInstaller: '下载最新版本的 Git for Windows 安装包',
+    runGitInstaller: '运行安装程序，保持默认设置即可',
+    // Windows notes
+    windowsNotes: 'Windows 注意事项',
+    usePowerShell: '建议使用 PowerShell 而不是 CMD，功能更强大',
+    runAsAdmin: '如果遇到权限问题，尝试以管理员身份运行',
+    antivirusWhitelist: '某些杀毒软件可能会误报，需要添加白名单',
+    restartTerminal: '安装完成后需重启命令行窗口使环境变量生效',
+    // Windows FAQ
+    windowsFaq: 'Windows 常见问题解决',
+    faqPermissionError: '安装时提示 "permission denied" 错误',
+    faqPermissionSolution: '这通常是权限问题，尝试以下解决方法：',
+    faqExecutionPolicy: 'PowerShell 执行策略错误',
+    faqExecutionPolicySolution: '如果遇到执行策略限制，运行以下命令：',
+    faqEnvNotWorking: '环境变量设置后不生效',
+    faqEnvNotWorkingSolution: '设置永久环境变量后需要：',
+    faqRestartPowerShell: '重新启动 PowerShell 或 CMD',
+    faqLogoutLogin: '或者注销并重新登录 Windows',
+    faqVerifyEnv: '使用以下命令验证设置'
   },
 
   // Setup Wizard

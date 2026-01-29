@@ -122,7 +122,29 @@ export default {
     startUsingGemini: 'Start using Gemini CLI!',
     largeContext: 'Large context window: 1M tokens',
     agentMode: 'Agent Mode auto-plans tasks',
-    googleSearch: 'Google Search real-time web access'
+    googleSearch: 'Google Search real-time web access',
+    // Git installation
+    installGit: 'Install Git',
+    visitGit: 'Visit',
+    downloadGitInstaller: 'Download the latest Git for Windows installer',
+    runGitInstaller: 'Run the installer with default settings',
+    // Windows notes
+    windowsNotes: 'Windows Notes',
+    usePowerShell: 'Use PowerShell instead of CMD for better functionality',
+    runAsAdmin: 'Run as Administrator if you encounter permission issues',
+    antivirusWhitelist: 'Some antivirus software may flag it, add to whitelist if needed',
+    restartTerminal: 'Restart terminal after installation for environment variables to take effect',
+    // Windows FAQ
+    windowsFaq: 'Windows Troubleshooting',
+    faqPermissionError: '"permission denied" error during installation',
+    faqPermissionSolution: 'This is usually a permission issue. Try the following:',
+    faqExecutionPolicy: 'PowerShell execution policy error',
+    faqExecutionPolicySolution: 'If you encounter execution policy restrictions, run:',
+    faqEnvNotWorking: 'Environment variables not working after setup',
+    faqEnvNotWorkingSolution: 'After setting permanent environment variables:',
+    faqRestartPowerShell: 'Restart PowerShell or CMD',
+    faqLogoutLogin: 'Or logout and login to Windows',
+    faqVerifyEnv: 'Verify settings with the following command'
   },
 
   // Setup Wizard
