@@ -66,6 +66,9 @@ const (
 // LinuxDoConnectSyntheticEmailDomain 是 LinuxDo Connect 用户的合成邮箱后缀（RFC 保留域名）。
 const LinuxDoConnectSyntheticEmailDomain = "@linuxdo-connect.invalid"
 
+// DingTalkSyntheticEmailDomain 是钉钉 OAuth 用户的合成邮箱后缀（RFC 保留域名）。
+const DingTalkSyntheticEmailDomain = "@dingtalk-connect.invalid"
+
 // Setting keys
 const (
 	// 注册设置
@@ -96,6 +99,12 @@ const (
 	SettingKeyLinuxDoConnectClientID     = "linuxdo_connect_client_id"
 	SettingKeyLinuxDoConnectClientSecret = "linuxdo_connect_client_secret"
 	SettingKeyLinuxDoConnectRedirectURL  = "linuxdo_connect_redirect_url"
+
+	// 钉钉 OAuth 登录设置
+	SettingKeyDingTalkOAuthEnabled      = "dingtalk_oauth_enabled"
+	SettingKeyDingTalkOAuthClientID     = "dingtalk_oauth_client_id"
+	SettingKeyDingTalkOAuthClientSecret = "dingtalk_oauth_client_secret"
+	SettingKeyDingTalkOAuthRedirectURL  = "dingtalk_oauth_redirect_url"
 
 	// OEM设置
 	SettingKeySiteName                    = "site_name"                     // 网站名称

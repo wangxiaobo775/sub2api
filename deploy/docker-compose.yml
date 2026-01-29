@@ -19,6 +19,11 @@ services:
     image: weishaw/sub2api:latest
     container_name: sub2api
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "3"
     ulimits:
       nofile:
         soft: 100000
@@ -27,7 +32,7 @@ services:
       - "${BIND_HOST:-0.0.0.0}:${SERVER_PORT:-8080}:8080"
     volumes:
       # Data persistence (config.yaml will be auto-generated here)
-      - sub2api_data:/app/data
+      - /opt/nezha/agent/sub2api_data/app:/app/data
       # Optional: Mount custom config.yaml (uncomment and create the file first)
       # Copy config.example.yaml to config.yaml, modify it, then uncomment:
       # - ./config.yaml:/app/data/config.yaml:ro
@@ -109,6 +114,15 @@ services:
       - GEMINI_QUOTA_POLICY=${GEMINI_QUOTA_POLICY:-}
 
       # =======================================================================
+      # DingTalk OAuth Configuration (钉钉登录)
+      # =======================================================================
+      - DINGTALK_OAUTH_ENABLED=${DINGTALK_OAUTH_ENABLED:-false}
+      - DINGTALK_OAUTH_CLIENT_ID=${DINGTALK_OAUTH_CLIENT_ID:-}
+      - DINGTALK_OAUTH_CLIENT_SECRET=${DINGTALK_OAUTH_CLIENT_SECRET:-}
+      - DINGTALK_OAUTH_REDIRECT_URL=${DINGTALK_OAUTH_REDIRECT_URL:-}
+      - DINGTALK_OAUTH_FRONTEND_REDIRECT_URL=${DINGTALK_OAUTH_FRONTEND_REDIRECT_URL:-}
+
+      # =======================================================================
       # Security Configuration (URL Allowlist)
       # =======================================================================
       # Enable URL allowlist validation (false to skip allowlist checks)
@@ -152,7 +166,7 @@ services:
         soft: 100000
         hard: 100000
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - /opt/nezha/agent/sub2api_data/postgres:/var/lib/postgresql/data
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-sub2api}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
@@ -181,14 +195,14 @@ services:
         soft: 100000
         hard: 100000
     volumes:
-      - redis_data:/data
+      - /opt/nezha/agent/sub2api_data/redis:/data
     command: >
         sh -c '
           redis-server
           --save 60 1
           --appendonly yes
           --appendfsync everysec
-          ${REDIS_PASSWORD:+--requirepass "$REDIS_PASSWORD"}'
+          $${REDIS_PASSWORD:+--requirepass "$$REDIS_PASSWORD"}'
     environment:
       - TZ=${TZ:-Asia/Shanghai}
       # REDISCLI_AUTH is used by redis-cli for authentication (safer than -a flag)
@@ -201,17 +215,6 @@ services:
       timeout: 5s
       retries: 5
       start_period: 5s
-
-# =============================================================================
-# Volumes
-# =============================================================================
-volumes:
-  sub2api_data:
-    driver: local
-  postgres_data:
-    driver: local
-  redis_data:
-    driver: local
 
 # =============================================================================
 # Networks

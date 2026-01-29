@@ -42,6 +42,8 @@ func RegisterAuthRoutes(
 		}), h.Auth.ResetPassword)
 		auth.GET("/oauth/linuxdo/start", h.Auth.LinuxDoOAuthStart)
 		auth.GET("/oauth/linuxdo/callback", h.Auth.LinuxDoOAuthCallback)
+		auth.GET("/oauth/dingtalk/start", h.Auth.DingTalkOAuthStart)
+		auth.GET("/oauth/dingtalk/callback", h.Auth.DingTalkOAuthCallback)
 	}
 
 	// 公开设置（无需认证）

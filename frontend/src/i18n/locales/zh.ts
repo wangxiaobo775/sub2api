@@ -268,6 +268,15 @@ export default {
       callbackMissingToken: '登录信息缺失，请返回重试。',
       backToLogin: '返回登录'
     },
+    dingtalk: {
+      signIn: '使用钉钉登录',
+      orContinue: '或使用邮箱密码继续',
+      callbackTitle: '正在完成登录',
+      callbackProcessing: '正在验证登录信息，请稍候...',
+      callbackHint: '如果页面未自动跳转，请返回登录页重试。',
+      callbackMissingToken: '登录信息缺失，请返回重试。',
+      backToLogin: '返回登录'
+    },
     oauth: {
       code: '授权码',
       state: '状态',

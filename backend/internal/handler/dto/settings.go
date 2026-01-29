@@ -77,6 +77,7 @@ type PublicSettings struct {
 	PurchaseSubscriptionEnabled bool   `json:"purchase_subscription_enabled"`
 	PurchaseSubscriptionURL     string `json:"purchase_subscription_url"`
 	LinuxDoOAuthEnabled         bool   `json:"linuxdo_oauth_enabled"`
+	DingTalkOAuthEnabled        bool   `json:"dingtalk_oauth_enabled"`
 	Version                     string `json:"version"`
 }
 

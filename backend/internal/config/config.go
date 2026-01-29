@@ -49,6 +49,7 @@ type Config struct {
 	JWT          JWTConfig                  `mapstructure:"jwt"`
 	Totp         TotpConfig                 `mapstructure:"totp"`
 	LinuxDo      LinuxDoConnectConfig       `mapstructure:"linuxdo_connect"`
+	DingTalk     DingTalkOAuthConfig        `mapstructure:"dingtalk_oauth"`
 	Default      DefaultConfig              `mapstructure:"default"`
 	RateLimit    RateLimitConfig            `mapstructure:"rate_limit"`
 	Pricing      PricingConfig              `mapstructure:"pricing"`
@@ -112,6 +113,21 @@ type LinuxDoConnectConfig struct {
 	UserInfoEmailPath    string `mapstructure:"userinfo_email_path"`
 	UserInfoIDPath       string `mapstructure:"userinfo_id_path"`
 	UserInfoUsernamePath string `mapstructure:"userinfo_username_path"`
+}
+
+// DingTalkOAuthConfig 钉钉 OAuth 登录配置
+type DingTalkOAuthConfig struct {
+	Enabled             bool   `mapstructure:"enabled"`
+	ClientID            string `mapstructure:"client_id"`              // AppKey
+	ClientSecret        string `mapstructure:"client_secret"`          // AppSecret
+	AuthorizeURL        string `mapstructure:"authorize_url"`          // 授权 URL
+	TokenURL            string `mapstructure:"token_url"`              // Token URL
+	UserInfoURL         string `mapstructure:"userinfo_url"`           // UserInfo URL
+	Scopes              string `mapstructure:"scopes"`                 // 默认 "openid"
+	RedirectURL         string `mapstructure:"redirect_url"`           // 后端回调地址
+	FrontendRedirectURL string `mapstructure:"frontend_redirect_url"`  // 前端接收 token 的路由
+	UserInfoNickPath    string `mapstructure:"userinfo_nick_path"`     // 用于从 userinfo JSON 提取昵称的 gjson 路径
+	UserInfoIDPath      string `mapstructure:"userinfo_id_path"`       // 用于从 userinfo JSON 提取用户 ID 的 gjson 路径
 }
 
 // TokenRefreshConfig OAuth token自动刷新配置
@@ -622,6 +638,16 @@ func Load() (*Config, error) {
 	cfg.LinuxDo.UserInfoEmailPath = strings.TrimSpace(cfg.LinuxDo.UserInfoEmailPath)
 	cfg.LinuxDo.UserInfoIDPath = strings.TrimSpace(cfg.LinuxDo.UserInfoIDPath)
 	cfg.LinuxDo.UserInfoUsernamePath = strings.TrimSpace(cfg.LinuxDo.UserInfoUsernamePath)
+	cfg.DingTalk.ClientID = strings.TrimSpace(cfg.DingTalk.ClientID)
+	cfg.DingTalk.ClientSecret = strings.TrimSpace(cfg.DingTalk.ClientSecret)
+	cfg.DingTalk.AuthorizeURL = strings.TrimSpace(cfg.DingTalk.AuthorizeURL)
+	cfg.DingTalk.TokenURL = strings.TrimSpace(cfg.DingTalk.TokenURL)
+	cfg.DingTalk.UserInfoURL = strings.TrimSpace(cfg.DingTalk.UserInfoURL)
+	cfg.DingTalk.Scopes = strings.TrimSpace(cfg.DingTalk.Scopes)
+	cfg.DingTalk.RedirectURL = strings.TrimSpace(cfg.DingTalk.RedirectURL)
+	cfg.DingTalk.FrontendRedirectURL = strings.TrimSpace(cfg.DingTalk.FrontendRedirectURL)
+	cfg.DingTalk.UserInfoNickPath = strings.TrimSpace(cfg.DingTalk.UserInfoNickPath)
+	cfg.DingTalk.UserInfoIDPath = strings.TrimSpace(cfg.DingTalk.UserInfoIDPath)
 	cfg.Dashboard.KeyPrefix = strings.TrimSpace(cfg.Dashboard.KeyPrefix)
 	cfg.CORS.AllowedOrigins = normalizeStringSlice(cfg.CORS.AllowedOrigins)
 	cfg.Security.ResponseHeaders.AdditionalAllowed = normalizeStringSlice(cfg.Security.ResponseHeaders.AdditionalAllowed)
@@ -739,6 +765,19 @@ func setDefaults() {
 	viper.SetDefault("linuxdo_connect.userinfo_email_path", "")
 	viper.SetDefault("linuxdo_connect.userinfo_id_path", "")
 	viper.SetDefault("linuxdo_connect.userinfo_username_path", "")
+
+	// DingTalk OAuth 登录
+	viper.SetDefault("dingtalk_oauth.enabled", false)
+	viper.SetDefault("dingtalk_oauth.client_id", "")
+	viper.SetDefault("dingtalk_oauth.client_secret", "")
+	viper.SetDefault("dingtalk_oauth.authorize_url", "https://login.dingtalk.com/oauth2/auth")
+	viper.SetDefault("dingtalk_oauth.token_url", "https://api.dingtalk.com/v1.0/oauth2/userAccessToken")
+	viper.SetDefault("dingtalk_oauth.userinfo_url", "https://api.dingtalk.com/v1.0/contact/users/me")
+	viper.SetDefault("dingtalk_oauth.scopes", "openid")
+	viper.SetDefault("dingtalk_oauth.redirect_url", "")
+	viper.SetDefault("dingtalk_oauth.frontend_redirect_url", "/auth/dingtalk/callback")
+	viper.SetDefault("dingtalk_oauth.userinfo_nick_path", "nick")
+	viper.SetDefault("dingtalk_oauth.userinfo_id_path", "unionId")
 
 	// Database
 	viper.SetDefault("database.host", "localhost")
@@ -966,6 +1005,51 @@ func (c *Config) Validate() error {
 		warnIfInsecureURL("linuxdo_connect.userinfo_url", c.LinuxDo.UserInfoURL)
 		warnIfInsecureURL("linuxdo_connect.redirect_url", c.LinuxDo.RedirectURL)
 		warnIfInsecureURL("linuxdo_connect.frontend_redirect_url", c.LinuxDo.FrontendRedirectURL)
+	}
+	if c.DingTalk.Enabled {
+		if strings.TrimSpace(c.DingTalk.ClientID) == "" {
+			return fmt.Errorf("dingtalk_oauth.client_id is required when dingtalk_oauth.enabled=true")
+		}
+		if strings.TrimSpace(c.DingTalk.ClientSecret) == "" {
+			return fmt.Errorf("dingtalk_oauth.client_secret is required when dingtalk_oauth.enabled=true")
+		}
+		if strings.TrimSpace(c.DingTalk.AuthorizeURL) == "" {
+			return fmt.Errorf("dingtalk_oauth.authorize_url is required when dingtalk_oauth.enabled=true")
+		}
+		if strings.TrimSpace(c.DingTalk.TokenURL) == "" {
+			return fmt.Errorf("dingtalk_oauth.token_url is required when dingtalk_oauth.enabled=true")
+		}
+		if strings.TrimSpace(c.DingTalk.UserInfoURL) == "" {
+			return fmt.Errorf("dingtalk_oauth.userinfo_url is required when dingtalk_oauth.enabled=true")
+		}
+		if strings.TrimSpace(c.DingTalk.RedirectURL) == "" {
+			return fmt.Errorf("dingtalk_oauth.redirect_url is required when dingtalk_oauth.enabled=true")
+		}
+		if strings.TrimSpace(c.DingTalk.FrontendRedirectURL) == "" {
+			return fmt.Errorf("dingtalk_oauth.frontend_redirect_url is required when dingtalk_oauth.enabled=true")
+		}
+
+		if err := ValidateAbsoluteHTTPURL(c.DingTalk.AuthorizeURL); err != nil {
+			return fmt.Errorf("dingtalk_oauth.authorize_url invalid: %w", err)
+		}
+		if err := ValidateAbsoluteHTTPURL(c.DingTalk.TokenURL); err != nil {
+			return fmt.Errorf("dingtalk_oauth.token_url invalid: %w", err)
+		}
+		if err := ValidateAbsoluteHTTPURL(c.DingTalk.UserInfoURL); err != nil {
+			return fmt.Errorf("dingtalk_oauth.userinfo_url invalid: %w", err)
+		}
+		if err := ValidateAbsoluteHTTPURL(c.DingTalk.RedirectURL); err != nil {
+			return fmt.Errorf("dingtalk_oauth.redirect_url invalid: %w", err)
+		}
+		if err := ValidateFrontendRedirectURL(c.DingTalk.FrontendRedirectURL); err != nil {
+			return fmt.Errorf("dingtalk_oauth.frontend_redirect_url invalid: %w", err)
+		}
+
+		warnIfInsecureURL("dingtalk_oauth.authorize_url", c.DingTalk.AuthorizeURL)
+		warnIfInsecureURL("dingtalk_oauth.token_url", c.DingTalk.TokenURL)
+		warnIfInsecureURL("dingtalk_oauth.userinfo_url", c.DingTalk.UserInfoURL)
+		warnIfInsecureURL("dingtalk_oauth.redirect_url", c.DingTalk.RedirectURL)
+		warnIfInsecureURL("dingtalk_oauth.frontend_redirect_url", c.DingTalk.FrontendRedirectURL)
 	}
 	if c.Billing.CircuitBreaker.Enabled {
 		if c.Billing.CircuitBreaker.FailureThreshold <= 0 {
