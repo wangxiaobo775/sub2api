@@ -259,6 +259,28 @@ func (r *groupRepository) ExistsByName(ctx context.Context, name string) (bool, 
 	return r.client.Group.Query().Where(group.NameEQ(name)).Exist(ctx)
 }
 
+func (r *groupRepository) ListByNames(ctx context.Context, names []string) ([]service.Group, error) {
+	if len(names) == 0 {
+		return nil, nil
+	}
+
+	groups, err := r.client.Group.Query().
+		Where(group.NameIn(names...)).
+		Where(group.StatusEQ(service.StatusActive)).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	outGroups := make([]service.Group, 0, len(groups))
+	for i := range groups {
+		g := groupEntityToService(groups[i])
+		outGroups = append(outGroups, *g)
+	}
+
+	return outGroups, nil
+}
+
 func (r *groupRepository) GetAccountCount(ctx context.Context, groupID int64) (int64, error) {
 	var count int64
 	if err := scanSingleRow(ctx, r.sql, "SELECT COUNT(*) FROM account_groups WHERE group_id = $1", []any{groupID}, &count); err != nil {

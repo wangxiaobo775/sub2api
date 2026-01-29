@@ -115,6 +115,7 @@ func newAuthService(repo *userRepoStub, settings map[string]string, emailCache E
 
 	return NewAuthService(
 		repo,
+		nil, // groupRepo - 测试不需要分组功能
 		cfg,
 		settingService,
 		emailService,

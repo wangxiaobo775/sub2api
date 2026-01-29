@@ -47,6 +47,7 @@ type JWTClaims struct {
 // AuthService 认证服务
 type AuthService struct {
 	userRepo          UserRepository
+	groupRepo         GroupRepository
 	cfg               *config.Config
 	settingService    *SettingService
 	emailService      *EmailService
@@ -58,6 +59,7 @@ type AuthService struct {
 // NewAuthService 创建认证服务实例
 func NewAuthService(
 	userRepo UserRepository,
+	groupRepo GroupRepository,
 	cfg *config.Config,
 	settingService *SettingService,
 	emailService *EmailService,
@@ -67,6 +69,7 @@ func NewAuthService(
 ) *AuthService {
 	return &AuthService{
 		userRepo:          userRepo,
+		groupRepo:         groupRepo,
 		cfg:               cfg,
 		settingService:    settingService,
 		emailService:      emailService,
@@ -426,6 +429,11 @@ func (s *AuthService) LoginOrRegisterOAuth(ctx context.Context, email, username 
 				}
 			} else {
 				user = newUser
+
+				// 钉钉登录新用户自动分配默认分组
+				if strings.HasSuffix(strings.ToLower(email), DingTalkSyntheticEmailDomain) {
+					s.assignDingTalkDefaultGroups(ctx, user)
+				}
 			}
 		} else {
 			log.Printf("[Auth] Database error during oauth login: %v", err)
@@ -729,4 +737,47 @@ func (s *AuthService) ResetPassword(ctx context.Context, email, token, newPasswo
 
 	log.Printf("[Auth] Password reset successful for user: %s", email)
 	return nil
+}
+
+// DingTalkDefaultGroupNames 钉钉登录用户的默认分组名称
+var DingTalkDefaultGroupNames = []string{
+	"Claude code 每日50美刀分组",
+	"codex 每日50美刀分组",
+	"Gemini 每日50美刀分组",
+}
+
+// assignDingTalkDefaultGroups 为钉钉登录的新用户分配默认分组
+func (s *AuthService) assignDingTalkDefaultGroups(ctx context.Context, user *User) {
+	if s.groupRepo == nil {
+		log.Printf("[Auth] GroupRepository not configured, skip assigning default groups for DingTalk user %d", user.ID)
+		return
+	}
+
+	groups, err := s.groupRepo.ListByNames(ctx, DingTalkDefaultGroupNames)
+	if err != nil {
+		log.Printf("[Auth] Failed to query default groups for DingTalk user %d: %v", user.ID, err)
+		return
+	}
+
+	if len(groups) == 0 {
+		log.Printf("[Auth] No default groups found for DingTalk user %d, group names: %v", user.ID, DingTalkDefaultGroupNames)
+		return
+	}
+
+	// 收集分组 ID
+	groupIDs := make([]int64, 0, len(groups))
+	groupNames := make([]string, 0, len(groups))
+	for _, g := range groups {
+		groupIDs = append(groupIDs, g.ID)
+		groupNames = append(groupNames, g.Name)
+	}
+
+	// 设置用户允许的分组
+	user.AllowedGroups = groupIDs
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		log.Printf("[Auth] Failed to assign default groups to DingTalk user %d: %v", user.ID, err)
+		return
+	}
+
+	log.Printf("[Auth] Successfully assigned %d default groups to DingTalk user %d: %v", len(groupIDs), user.ID, groupNames)
 }
