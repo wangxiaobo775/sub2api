@@ -288,32 +288,26 @@ func dingtalkFetchUserInfo(
 }
 
 func dingtalkParseUserInfo(body string, cfg config.DingTalkOAuthConfig) (username string, subject string, err error) {
-	// 提取昵称
-	username = firstNonEmptyDingTalk(
-		getGJSONDingTalk(body, cfg.UserInfoNickPath),
-		getGJSONDingTalk(body, "nick"),
-		getGJSONDingTalk(body, "name"),
-	)
-
-	// 提取用户唯一标识：优先 unionId（跨应用一致），fallback 到 openId
+	// 提取用户唯一标识：优先 userId，然后 openId，最后 unionId
+	// userId 是企业内部用户标识（如果 API 返回的话）
 	subject = firstNonEmptyDingTalk(
 		getGJSONDingTalk(body, cfg.UserInfoIDPath),
-		getGJSONDingTalk(body, "unionId"),
+		getGJSONDingTalk(body, "userid"),
+		getGJSONDingTalk(body, "userId"),
 		getGJSONDingTalk(body, "openId"),
+		getGJSONDingTalk(body, "unionId"),
 	)
 
 	subject = strings.TrimSpace(subject)
 	if subject == "" {
-		return "", "", errors.New("userinfo missing id field (unionId/openId)")
+		return "", "", errors.New("userinfo missing id field (userId/openId/unionId)")
 	}
 	if !isSafeDingTalkSubject(subject) {
 		return "", "", errors.New("userinfo returned invalid id field")
 	}
 
-	username = strings.TrimSpace(username)
-	if username == "" {
-		username = "dingtalk_" + subject
-	}
+	// 使用匿名用户名，不暴露真实昵称
+	username = "钉钉用户"
 
 	return username, subject, nil
 }
