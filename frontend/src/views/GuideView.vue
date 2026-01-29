@@ -250,21 +250,104 @@
                 </div>
 
                 <div>
-                  <h5 class="mb-3 text-lg font-semibold text-gray-800 dark:text-gray-200">3.2 {{ t('guide.configureEnv') }}</h5>
-                  <div class="mb-4 rounded-r-lg border-l-4 border-red-400 bg-red-50 p-4 dark:bg-red-900/20">
-                    <p class="font-medium text-red-700 dark:text-red-300">
-                      {{ t('guide.importantNote') }}{{ t('guide.replaceToken') }}
-                    </p>
-                  </div>
+                  <h5 class="mb-3 text-lg font-semibold text-gray-800 dark:text-gray-200">3.2 {{ t('guide.setEnvVars') }}</h5>
+                  <p class="mb-4 text-gray-700 dark:text-gray-300">{{ t('guide.envVarsDesc') }}</p>
 
-                  <p class="mb-3 text-gray-700 dark:text-gray-300">
-                    {{ t('guide.configLocation') }}<code class="rounded bg-gray-200 px-2 py-1 text-sm text-gray-800 dark:bg-dark-600 dark:text-gray-200">{{ activePlatform === 'windows' ? '%USERPROFILE%\\.claude\\settings.json' : '~/.claude/settings.json' }}</code>
-                  </p>
-                  <CodeBlock
-                    :code='`{\n  "env": {\n    "ANTHROPIC_AUTH_TOKEN": "` + t("guide.pasteYourToken") + `",\n    "ANTHROPIC_BASE_URL": "` + apiBaseUrl + `"\n  }\n}`'
-                    title="settings.json"
-                    :copyText="t('guide.copyConfig')"
-                  />
+                  <!-- Windows 环境变量设置 -->
+                  <template v-if="activePlatform === 'windows'">
+                    <!-- 方法一：临时设置 -->
+                    <div class="mb-6">
+                      <h6 class="mb-2 font-medium text-gray-800 dark:text-gray-200">{{ t('guide.envMethod1') }}{{ t('guide.envTempSession') }}</h6>
+                      <p class="mb-3 text-sm text-gray-600 dark:text-gray-400">{{ t('guide.envTempDesc') }}</p>
+                      <CodeBlock
+                        :code='`$env:ANTHROPIC_BASE_URL = "` + apiBaseUrl + `"\n$env:ANTHROPIC_AUTH_TOKEN = "` + t("guide.yourApiKey") + `"`'
+                        title="PowerShell"
+                      />
+                      <div class="mt-2 rounded-r-lg border-l-4 border-blue-400 bg-blue-50 p-3 dark:bg-blue-900/20">
+                        <p class="text-sm text-blue-700 dark:text-blue-300">💡 {{ t('guide.envTempTip') }}</p>
+                      </div>
+                    </div>
+
+                    <!-- 方法二：永久设置 -->
+                    <div class="mb-6">
+                      <h6 class="mb-2 font-medium text-gray-800 dark:text-gray-200">{{ t('guide.envMethod2') }}{{ t('guide.envPermanentUser') }}</h6>
+                      <p class="mb-3 text-sm text-gray-600 dark:text-gray-400">{{ t('guide.envPermanentDesc') }}</p>
+                      <CodeBlock
+                        :code='`# ` + t("guide.setUserEnvComment") + `\n[System.Environment]::SetEnvironmentVariable("ANTHROPIC_BASE_URL", "` + apiBaseUrl + `", [System.EnvironmentVariableTarget]::User)\n[System.Environment]::SetEnvironmentVariable("ANTHROPIC_AUTH_TOKEN", "` + t("guide.yourApiKey") + `", [System.EnvironmentVariableTarget]::User)`'
+                        title="PowerShell"
+                      />
+                      <div class="mt-2 rounded-r-lg border-l-4 border-blue-400 bg-blue-50 p-3 dark:bg-blue-900/20">
+                        <p class="text-sm text-blue-700 dark:text-blue-300">💡 {{ t('guide.envPermanentTip') }}</p>
+                      </div>
+                    </div>
+
+                    <!-- 方法三：配置文件（推荐） -->
+                    <div class="mb-6">
+                      <h6 class="mb-2 font-medium text-gray-800 dark:text-gray-200">{{ t('guide.envMethod3') }}{{ t('guide.envConfigFile') }}{{ t('guide.recommended') }}</h6>
+                      <p class="mb-3 text-sm text-gray-600 dark:text-gray-400">
+                        {{ t('guide.configLocation') }}<code class="rounded bg-gray-200 px-2 py-1 text-sm text-gray-800 dark:bg-dark-600 dark:text-gray-200">%USERPROFILE%\.claude\settings.json</code>
+                      </p>
+                      <CodeBlock
+                        :code='`{\n  "env": {\n    "ANTHROPIC_AUTH_TOKEN": "` + t("guide.pasteYourToken") + `",\n    "ANTHROPIC_BASE_URL": "` + apiBaseUrl + `"\n  }\n}`'
+                        title="settings.json"
+                      />
+                      <div class="mt-2 rounded-r-lg border-l-4 border-blue-400 bg-blue-50 p-3 dark:bg-blue-900/20">
+                        <p class="text-sm text-blue-700 dark:text-blue-300">💡 {{ t('guide.configFileTip') }}</p>
+                      </div>
+                    </div>
+
+                    <!-- VSCode 插件配置 -->
+                    <div class="mb-6">
+                      <h6 class="mb-2 font-medium text-gray-800 dark:text-gray-200">{{ t('guide.vscodePluginConfig') }}</h6>
+                      <p class="mb-3 text-sm text-gray-600 dark:text-gray-400">{{ t('guide.vscodePluginDesc') }}</p>
+                      <p class="mb-3 text-sm text-gray-600 dark:text-gray-400">
+                        {{ t('guide.configLocation') }}<code class="rounded bg-gray-200 px-2 py-1 text-sm text-gray-800 dark:bg-dark-600 dark:text-gray-200">C:\Users\{{ t('guide.yourUsername') }}\.claude\config.json</code>
+                      </p>
+                      <div class="mb-3 rounded-r-lg border-l-4 border-blue-400 bg-blue-50 p-3 dark:bg-blue-900/20">
+                        <p class="text-sm text-blue-700 dark:text-blue-300">💡 {{ t('guide.createFileIfNotExist') }}</p>
+                      </div>
+                      <CodeBlock
+                        :code='`{\n  "primaryApiKey": "crs"\n}`'
+                        title="config.json"
+                      />
+                    </div>
+
+                    <!-- 验证环境变量 -->
+                    <div>
+                      <h6 class="mb-2 font-medium text-gray-800 dark:text-gray-200">{{ t('guide.verifyEnvVars') }}</h6>
+                      <p class="mb-3 text-sm text-gray-600 dark:text-gray-400">{{ t('guide.verifyEnvVarsDesc') }}</p>
+                      <CodeBlock
+                        :code='"echo $env:ANTHROPIC_BASE_URL\necho $env:ANTHROPIC_AUTH_TOKEN"'
+                        title="PowerShell"
+                      />
+                      <p class="mt-3 text-sm text-gray-600 dark:text-gray-400">{{ t('guide.expectedOutput') }}</p>
+                      <CodeBlock
+                        :code='apiBaseUrl + `\ncr_xxxxxxxxxxxxxxxxxx`'
+                        title="Output"
+                      />
+                      <div class="mt-2 rounded-r-lg border-l-4 border-yellow-400 bg-yellow-50 p-3 dark:bg-yellow-900/20">
+                        <p class="text-sm text-yellow-700 dark:text-yellow-300">💡 {{ t('guide.verifyEnvTip') }}</p>
+                      </div>
+                    </div>
+                  </template>
+
+                  <!-- macOS/Linux 环境变量设置 -->
+                  <template v-else>
+                    <div class="mb-4 rounded-r-lg border-l-4 border-red-400 bg-red-50 p-4 dark:bg-red-900/20">
+                      <p class="font-medium text-red-700 dark:text-red-300">
+                        {{ t('guide.importantNote') }}{{ t('guide.replaceToken') }}
+                      </p>
+                    </div>
+
+                    <p class="mb-3 text-gray-700 dark:text-gray-300">
+                      {{ t('guide.configLocation') }}<code class="rounded bg-gray-200 px-2 py-1 text-sm text-gray-800 dark:bg-dark-600 dark:text-gray-200">~/.claude/settings.json</code>
+                    </p>
+                    <CodeBlock
+                      :code='`{\n  "env": {\n    "ANTHROPIC_AUTH_TOKEN": "` + t("guide.pasteYourToken") + `",\n    "ANTHROPIC_BASE_URL": "` + apiBaseUrl + `"\n  }\n}`'
+                      title="settings.json"
+                      :copyText="t('guide.copyConfig')"
+                    />
+                  </template>
                 </div>
               </div>
             </div>

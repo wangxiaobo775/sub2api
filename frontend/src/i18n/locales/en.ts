@@ -144,7 +144,31 @@ export default {
     faqEnvNotWorkingSolution: 'After setting permanent environment variables:',
     faqRestartPowerShell: 'Restart PowerShell or CMD',
     faqLogoutLogin: 'Or logout and login to Windows',
-    faqVerifyEnv: 'Verify settings with the following command'
+    faqVerifyEnv: 'Verify settings with the following command',
+    // Environment Variables Setup
+    setEnvVars: 'Set Environment Variables',
+    envVarsDesc: 'To connect Claude Code to the relay service, you need to set environment variables:',
+    envMethod1: 'Method 1: ',
+    envMethod2: 'Method 2: ',
+    envMethod3: 'Method 3: ',
+    envTempSession: 'PowerShell Temporary (Current Session)',
+    envTempDesc: 'Run the following commands in PowerShell:',
+    yourApiKey: 'your-api-key',
+    envTempTip: 'Remember to replace "your-api-key" with your actual API key from the console. This setting only works in the current session.',
+    envPermanentUser: 'PowerShell Permanent (User Level)',
+    envPermanentDesc: 'Run the following commands in PowerShell to set user-level environment variables:',
+    setUserEnvComment: 'Set user-level environment variables (permanent)',
+    envPermanentTip: 'You need to restart PowerShell for the settings to take effect.',
+    envConfigFile: 'Config File',
+    configFileTip: 'If the folder does not exist, create the .claude folder first.',
+    vscodePluginConfig: 'VSCode Claude Plugin Configuration',
+    vscodePluginDesc: 'If using the VSCode Claude plugin, you need to configure it in the config file:',
+    yourUsername: 'your-username',
+    createFileIfNotExist: 'If the file does not exist, create it manually.',
+    verifyEnvVars: 'Verify Environment Variables',
+    verifyEnvVarsDesc: 'After setting environment variables, verify with the following commands:',
+    expectedOutput: 'Expected output example:',
+    verifyEnvTip: 'If the output is empty or shows the variable name itself, the environment variable setup failed. Please reconfigure.'
   },
 
   // Setup Wizard

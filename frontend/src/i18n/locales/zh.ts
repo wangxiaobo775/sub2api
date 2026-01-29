@@ -141,7 +141,31 @@ export default {
     faqEnvNotWorkingSolution: '设置永久环境变量后需要：',
     faqRestartPowerShell: '重新启动 PowerShell 或 CMD',
     faqLogoutLogin: '或者注销并重新登录 Windows',
-    faqVerifyEnv: '使用以下命令验证设置'
+    faqVerifyEnv: '使用以下命令验证设置',
+    // Environment Variables Setup
+    setEnvVars: '设置环境变量',
+    envVarsDesc: '为了让 Claude Code 连接到中转服务，需要设置环境变量：',
+    envMethod1: '方法一：',
+    envMethod2: '方法二：',
+    envMethod3: '方法三：',
+    envTempSession: 'PowerShell 临时设置（当前会话）',
+    envTempDesc: '在 PowerShell 中运行以下命令：',
+    yourApiKey: '你的API密钥',
+    envTempTip: '记得将 "你的API密钥" 替换为在控制台创建的实际密钥。此设置仅在当前会话有效。',
+    envPermanentUser: 'PowerShell 永久设置（用户级）',
+    envPermanentDesc: '在 PowerShell 中运行以下命令设置用户级环境变量：',
+    setUserEnvComment: '设置用户级环境变量（永久生效）',
+    envPermanentTip: '设置后需要重新打开 PowerShell 窗口才能生效。',
+    envConfigFile: '配置文件方式',
+    configFileTip: '如果文件夹不存在，请先创建 .claude 文件夹。',
+    vscodePluginConfig: 'VSCode Claude 插件配置',
+    vscodePluginDesc: '如果使用 VSCode 的 Claude 插件，需要在配置文件中进行设置：',
+    yourUsername: '你的用户名',
+    createFileIfNotExist: '如果该文件不存在，请手动创建。',
+    verifyEnvVars: '验证环境变量设置',
+    verifyEnvVarsDesc: '设置完环境变量后，可以通过以下命令验证是否设置成功：',
+    expectedOutput: '预期输出示例：',
+    verifyEnvTip: '如果输出为空或显示变量名本身，说明环境变量设置失败，请重新设置。'
   },
 
   // Setup Wizard
