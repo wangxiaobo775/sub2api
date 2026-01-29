@@ -306,8 +306,8 @@ func dingtalkParseUserInfo(body string, cfg config.DingTalkOAuthConfig) (usernam
 		return "", "", errors.New("userinfo returned invalid id field")
 	}
 
-	// 使用匿名用户名，不暴露真实昵称
-	username = "钉钉用户"
+	// 用户名直接使用 userId（subject）
+	username = subject
 
 	return username, subject, nil
 }
