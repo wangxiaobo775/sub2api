@@ -524,7 +524,7 @@
                   <h5 class="mb-3 text-lg font-semibold text-gray-800 dark:text-gray-200">3.3 {{ t('guide.createConfigFile') }}</h5>
                   <p class="mb-3 text-gray-700 dark:text-gray-300">{{ t('guide.createConfigToml') }}</p>
                   <CodeBlock
-                    :code='`model_provider = "duckcoding"\nmodel = "gpt-5.2-codex"\nmodel_reasoning_effort = "xhigh"\nnetwork_access = "enabled"\ndisable_response_storage = true\n\n[model_providers.duckcoding]\nname = "duckcoding"\nbase_url = "` + apiBaseUrl + `/v1"\nwire_api = "responses"\nrequires_openai_auth = true`'
+                    :code='`model_provider = "dmsai"\nmodel = "gpt-5.2-codex"\nmodel_reasoning_effort = "xhigh"\nnetwork_access = "enabled"\ndisable_response_storage = true\n\n[model_providers.dmsai]\nname = "dmsai"\nbase_url = "https://ai.0707007.xyz/v1"\nwire_api = "responses"\nrequires_openai_auth = true`'
                     title="config.toml"
                     :copyText="t('guide.copyConfig')"
                   />
