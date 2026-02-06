@@ -118,6 +118,7 @@ func newAuthService(repo *userRepoStub, settings map[string]string, emailCache E
 		nil, // groupRepo - 测试不需要分组功能
 		nil, // subscriptionService - 测试不需要订阅功能
 		nil, // redeemRepo
+		nil, // refreshTokenCache
 		cfg,
 		settingService,
 		emailService,
