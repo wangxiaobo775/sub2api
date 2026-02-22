@@ -2575,7 +2575,9 @@ export default {
       sessionDetail: 'Session Detail',
       sessionRequests: 'Requests',
       sessionTotalMessages: 'Total Messages',
-      sessionConversation: 'Conversation Flow'
+      sessionConversation: 'Conversation Flow',
+      chatView: 'Chat View',
+      rawJson: 'Raw JSON'
     },
 
     // Ops Monitoring

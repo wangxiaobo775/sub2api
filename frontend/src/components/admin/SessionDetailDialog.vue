@@ -38,9 +38,27 @@
       <!-- 完整对话流 -->
       <div>
         <div class="mb-2 flex items-center justify-between">
-          <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-            {{ t('admin.requestContentLogs.sessionConversation') }}
-          </span>
+          <!-- Tab 切换 -->
+          <div class="flex items-center gap-1 rounded-lg bg-gray-100 p-0.5 dark:bg-gray-800">
+            <button
+              class="rounded-md px-3 py-1 text-xs font-medium transition-colors"
+              :class="viewMode === 'chat'
+                ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-gray-100'
+                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'"
+              @click="viewMode = 'chat'"
+            >
+              {{ t('admin.requestContentLogs.chatView') }}
+            </button>
+            <button
+              class="rounded-md px-3 py-1 text-xs font-medium transition-colors"
+              :class="viewMode === 'json'
+                ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-gray-100'
+                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'"
+              @click="viewMode = 'json'"
+            >
+              {{ t('admin.requestContentLogs.rawJson') }}
+            </button>
+          </div>
           <button
             class="text-xs text-primary-600 hover:text-primary-800 dark:text-primary-400"
             @click="copyAll"
@@ -48,7 +66,14 @@
             {{ copied ? t('common.copied') : t('common.copy') }}
           </button>
         </div>
-        <div class="max-h-[60vh] overflow-auto rounded-lg bg-gray-900 p-4 space-y-3">
+
+        <!-- 聊天气泡视图 -->
+        <div v-if="viewMode === 'chat'" class="max-h-[60vh] overflow-auto rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+          <ChatMessageView :messages="mergedMessages" :dividers="dividers" />
+        </div>
+
+        <!-- 原始 JSON 视图 -->
+        <div v-else class="max-h-[60vh] overflow-auto rounded-lg bg-gray-900 p-4 space-y-3">
           <div
             v-for="(entry, idx) in sessionLogs"
             :key="entry.id"
@@ -84,7 +109,11 @@ import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { adminAPI } from '@/api/admin'
 import type { RequestContentLogDetail } from '@/api/admin/requestContentLogs'
+import { normalizeMessages } from '@/api/admin/requestContentLogs'
+import type { ChatMessage } from '@/api/admin/requestContentLogs'
 import BaseDialog from '@/components/common/BaseDialog.vue'
+import ChatMessageView from './ChatMessageView.vue'
+import type { DividerInfo } from './ChatMessageView.vue'
 
 const props = defineProps<{
   show: boolean
@@ -98,11 +127,46 @@ const { t } = useI18n()
 const sessionLogs = ref<RequestContentLogDetail[]>([])
 const loading = ref(false)
 const copied = ref(false)
+const viewMode = ref<'chat' | 'json'>('chat')
 
 const lastMessageCount = computed(() => {
   if (sessionLogs.value.length === 0) return 0
   const last = sessionLogs.value[sessionLogs.value.length - 1]
   return last.message_count || 0
+})
+
+/**
+ * 将所有 delta 的 messages 拼接为完整对话流
+ * 每个 delta 存储的是增量消息，按顺序拼接即可
+ */
+const mergedMessages = computed<ChatMessage[]>(() => {
+  const all: ChatMessage[] = []
+  for (const entry of sessionLogs.value) {
+    const msgs = normalizeMessages(entry.messages)
+    all.push(...msgs)
+  }
+  return all
+})
+
+/**
+ * 在每个 delta 分界处插入时间戳分隔线
+ */
+const dividers = computed<DividerInfo[]>(() => {
+  const result: DividerInfo[] = []
+  let offset = 0
+  for (let i = 0; i < sessionLogs.value.length; i++) {
+    const entry = sessionLogs.value[i]
+    const msgs = normalizeMessages(entry.messages)
+    // 第一个 delta 不需要分隔线（从开头开始）
+    if (i > 0 && msgs.length > 0) {
+      result.push({
+        beforeIndex: offset,
+        label: `#${i + 1} · ${formatTime(entry.created_at)}${entry.model ? ' · ' + entry.model : ''}`
+      })
+    }
+    offset += msgs.length
+  }
+  return result
 })
 
 const loadSession = async (fp: string) => {

@@ -52,7 +52,27 @@
       <!-- Messages 内容 -->
       <div>
         <div class="mb-2 flex items-center justify-between">
-          <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Messages</span>
+          <!-- Tab 切换 -->
+          <div class="flex items-center gap-1 rounded-lg bg-gray-100 p-0.5 dark:bg-gray-800">
+            <button
+              class="rounded-md px-3 py-1 text-xs font-medium transition-colors"
+              :class="viewMode === 'chat'
+                ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-gray-100'
+                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'"
+              @click="viewMode = 'chat'"
+            >
+              {{ t('admin.requestContentLogs.chatView') }}
+            </button>
+            <button
+              class="rounded-md px-3 py-1 text-xs font-medium transition-colors"
+              :class="viewMode === 'json'
+                ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-gray-100'
+                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'"
+              @click="viewMode = 'json'"
+            >
+              {{ t('admin.requestContentLogs.rawJson') }}
+            </button>
+          </div>
           <button
             class="text-xs text-primary-600 hover:text-primary-800 dark:text-primary-400"
             @click="copyMessages"
@@ -60,7 +80,14 @@
             {{ copied ? t('common.copied') : t('common.copy') }}
           </button>
         </div>
-        <div class="max-h-[60vh] overflow-auto rounded-lg bg-gray-900 p-4">
+
+        <!-- 聊天气泡视图 -->
+        <div v-if="viewMode === 'chat'" class="max-h-[60vh] overflow-auto rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+          <ChatMessageView :messages="normalizedMessages" />
+        </div>
+
+        <!-- 原始 JSON 视图 -->
+        <div v-else class="max-h-[60vh] overflow-auto rounded-lg bg-gray-900 p-4">
           <pre class="text-xs text-green-400 whitespace-pre-wrap break-words">{{ formattedMessages }}</pre>
         </div>
       </div>
@@ -77,7 +104,9 @@ import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { adminAPI } from '@/api/admin'
 import type { RequestContentLogDetail as LogDetail } from '@/api/admin/requestContentLogs'
+import { normalizeMessages } from '@/api/admin/requestContentLogs'
 import BaseDialog from '@/components/common/BaseDialog.vue'
+import ChatMessageView from './ChatMessageView.vue'
 
 const props = defineProps<{
   show: boolean
@@ -91,6 +120,7 @@ const { t } = useI18n()
 const logDetail = ref<LogDetail | null>(null)
 const loading = ref(false)
 const copied = ref(false)
+const viewMode = ref<'chat' | 'json'>('chat')
 
 const formattedMessages = computed(() => {
   if (!logDetail.value?.messages) return ''
@@ -99,6 +129,11 @@ const formattedMessages = computed(() => {
   } catch {
     return String(logDetail.value.messages)
   }
+})
+
+const normalizedMessages = computed(() => {
+  if (!logDetail.value?.messages) return []
+  return normalizeMessages(logDetail.value.messages)
 })
 
 const loadDetail = async (id: number) => {

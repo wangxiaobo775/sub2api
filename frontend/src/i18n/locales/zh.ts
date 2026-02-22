@@ -2742,7 +2742,9 @@ export default {
       sessionDetail: '会话详情',
       sessionRequests: '请求次数',
       sessionTotalMessages: '消息总数',
-      sessionConversation: '完整对话流'
+      sessionConversation: '完整对话流',
+      chatView: '对话视图',
+      rawJson: '原始 JSON'
     },
 
     // Ops Monitoring
