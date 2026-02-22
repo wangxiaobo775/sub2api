@@ -159,6 +159,7 @@ func (s *RequestContentLogService) LogAsync(body []byte, userID, apiKeyID int64,
 		} `json:"metadata"`
 	}
 	if err := json.Unmarshal(body, &partial); err != nil {
+		log.Printf("[RequestContentLog] JSON parse failed (len=%d): %v", len(body), err)
 		return
 	}
 
@@ -168,12 +169,14 @@ func (s *RequestContentLogService) LogAsync(body []byte, userID, apiKeyID int64,
 		rawMessages = partial.Contents
 	}
 	if len(rawMessages) == 0 {
+		log.Printf("[RequestContentLog] No messages/contents field (model=%s, bodyLen=%d)", partial.Model, len(body))
 		return
 	}
 
 	// 解析消息数组为独立元素
 	var messageArray []json.RawMessage
 	if err := json.Unmarshal(rawMessages, &messageArray); err != nil || len(messageArray) == 0 {
+		log.Printf("[RequestContentLog] messages not an array or empty (model=%s, rawLen=%d)", partial.Model, len(rawMessages))
 		return
 	}
 

@@ -54,6 +54,9 @@ func RequestContentLogger(svc *service.RequestContentLogService, platform string
 
 		body := capture.buf.Bytes()
 		if len(body) == 0 || c.Writer.Status() >= 500 {
+			if len(body) == 0 {
+				log.Printf("[RequestContentLog] Empty body capture (status=%d, method=%s, path=%s)", c.Writer.Status(), c.Request.Method, c.Request.URL.Path)
+			}
 			return
 		}
 
