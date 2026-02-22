@@ -42,6 +42,9 @@ func (h *RequestContentLogHandler) List(c *gin.Context) {
 	if v := c.Query("platform"); v != "" {
 		filters.Platform = v
 	}
+	if v := c.Query("session_fingerprint"); v != "" {
+		filters.SessionFingerprint = v
+	}
 	if v := c.Query("start_date"); v != "" {
 		if t, err := time.Parse(time.RFC3339, v); err == nil {
 			filters.StartDate = t
@@ -78,4 +81,22 @@ func (h *RequestContentLogHandler) GetByID(c *gin.Context) {
 	}
 
 	response.Success(c, log)
+}
+
+// GetSession 查询会话完整对话流
+// GET /api/v1/admin/request-content-logs/session/:fingerprint
+func (h *RequestContentLogHandler) GetSession(c *gin.Context) {
+	fingerprint := c.Param("fingerprint")
+	if fingerprint == "" {
+		response.BadRequest(c, "fingerprint is required")
+		return
+	}
+
+	logs, err := h.svc.ListBySession(c.Request.Context(), fingerprint)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, logs)
 }

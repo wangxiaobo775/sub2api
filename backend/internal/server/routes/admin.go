@@ -420,6 +420,7 @@ func registerRequestContentLogRoutes(admin *gin.RouterGroup, h *handler.Handlers
 	logs := admin.Group("/request-content-logs")
 	{
 		logs.GET("", h.Admin.RequestContentLog.List)
+		logs.GET("/session/:fingerprint", h.Admin.RequestContentLog.GetSession)
 		logs.GET("/:id", h.Admin.RequestContentLog.GetByID)
 	}
 }

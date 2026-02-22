@@ -2569,7 +2569,13 @@ export default {
       startDate: 'Start Date',
       endDate: 'End Date',
       filterModel: 'Model name',
-      filterUserId: 'User ID'
+      filterUserId: 'User ID',
+      session: 'Session',
+      filterSession: 'Session fingerprint',
+      sessionDetail: 'Session Detail',
+      sessionRequests: 'Requests',
+      sessionTotalMessages: 'Total Messages',
+      sessionConversation: 'Conversation Flow'
     },
 
     // Ops Monitoring

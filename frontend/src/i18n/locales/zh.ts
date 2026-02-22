@@ -2736,7 +2736,13 @@ export default {
       startDate: '开始时间',
       endDate: '结束时间',
       filterModel: '输入模型名',
-      filterUserId: '用户 ID'
+      filterUserId: '用户 ID',
+      session: '会话',
+      filterSession: '会话指纹',
+      sessionDetail: '会话详情',
+      sessionRequests: '请求次数',
+      sessionTotalMessages: '消息总数',
+      sessionConversation: '完整对话流'
     },
 
     // Ops Monitoring

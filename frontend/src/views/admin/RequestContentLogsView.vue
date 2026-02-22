@@ -35,6 +35,16 @@
             />
           </div>
           <div class="flex flex-col gap-1">
+            <label class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.requestContentLogs.session') }}</label>
+            <input
+              v-model="filters.session_fingerprint"
+              type="text"
+              :placeholder="t('admin.requestContentLogs.filterSession')"
+              class="input w-40"
+              @keyup.enter="applyFilters"
+            />
+          </div>
+          <div class="flex flex-col gap-1">
             <label class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.requestContentLogs.startDate') }}</label>
             <input
               v-model="filters.start_date"
@@ -71,13 +81,14 @@
                 <th class="table-th">{{ t('admin.requestContentLogs.apiKey') }}</th>
                 <th class="table-th">{{ t('admin.requestContentLogs.model') }}</th>
                 <th class="table-th">{{ t('admin.requestContentLogs.platform') }}</th>
+                <th class="table-th">{{ t('admin.requestContentLogs.session') }}</th>
                 <th class="table-th">IP</th>
                 <th class="table-th">{{ t('common.actions') }}</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
               <tr v-if="loading">
-                <td colspan="8" class="px-4 py-8 text-center text-gray-500">
+                <td colspan="9" class="px-4 py-8 text-center text-gray-500">
                   <div class="flex items-center justify-center gap-2">
                     <svg class="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none">
                       <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" class="opacity-25" />
@@ -88,7 +99,7 @@
                 </td>
               </tr>
               <tr v-else-if="logs.length === 0">
-                <td colspan="8" class="px-4 py-8 text-center text-gray-500">
+                <td colspan="9" class="px-4 py-8 text-center text-gray-500">
                   {{ t('common.noData') }}
                 </td>
               </tr>
@@ -113,6 +124,21 @@
                   >
                     {{ log.platform }}
                   </span>
+                </td>
+                <td class="table-td">
+                  <button
+                    v-if="log.session_fingerprint"
+                    class="inline-flex items-center gap-1 font-mono text-xs text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300"
+                    :title="log.session_fingerprint"
+                    @click="viewSession(log.session_fingerprint!)"
+                  >
+                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
+                    </svg>
+                    {{ log.session_fingerprint.slice(0, 8) }}
+                    <span v-if="log.message_count" class="text-gray-400">({{ log.message_offset }}-{{ log.message_count }})</span>
+                  </button>
+                  <span v-else class="text-gray-400">-</span>
                 </td>
                 <td class="table-td font-mono text-xs">{{ log.ip_address }}</td>
                 <td class="table-td">
@@ -147,6 +173,13 @@
     :log-id="selectedLogId"
     @close="detailVisible = false"
   />
+
+  <!-- 会话详情弹窗 -->
+  <SessionDetailDialog
+    :show="sessionVisible"
+    :fingerprint="selectedFingerprint"
+    @close="sessionVisible = false"
+  />
 </template>
 
 <script setup lang="ts">
@@ -157,6 +190,7 @@ import type { RequestContentLogItem } from '@/api/admin/requestContentLogs'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import RequestContentLogDetail from '@/components/admin/RequestContentLogDetail.vue'
+import SessionDetailDialog from '@/components/admin/SessionDetailDialog.vue'
 
 const { t } = useI18n()
 
@@ -168,6 +202,7 @@ const filters = reactive({
   model: '',
   platform: '',
   user_id: undefined as number | undefined,
+  session_fingerprint: '',
   start_date: '',
   end_date: ''
 })
@@ -181,6 +216,9 @@ const pagination = reactive({
 const detailVisible = ref(false)
 const selectedLogId = ref(0)
 
+const sessionVisible = ref(false)
+const selectedFingerprint = ref('')
+
 const loadLogs = async () => {
   abortController?.abort()
   const c = new AbortController()
@@ -193,6 +231,7 @@ const loadLogs = async () => {
     if (filters.model) queryFilters.model = filters.model
     if (filters.platform) queryFilters.platform = filters.platform
     if (filters.user_id) queryFilters.user_id = filters.user_id
+    if (filters.session_fingerprint) queryFilters.session_fingerprint = filters.session_fingerprint
     if (filters.start_date) queryFilters.start_date = new Date(filters.start_date).toISOString()
     if (filters.end_date) queryFilters.end_date = new Date(filters.end_date).toISOString()
 
@@ -226,6 +265,7 @@ const resetFilters = () => {
   filters.model = ''
   filters.platform = ''
   filters.user_id = undefined
+  filters.session_fingerprint = ''
   filters.start_date = ''
   filters.end_date = ''
   pagination.page = 1
@@ -246,6 +286,11 @@ const handlePageSizeChange = (s: number) => {
 const viewDetail = (id: number) => {
   selectedLogId.value = id
   detailVisible.value = true
+}
+
+const viewSession = (fingerprint: string) => {
+  selectedFingerprint.value = fingerprint
+  sessionVisible.value = true
 }
 
 const formatTime = (iso: string) => {

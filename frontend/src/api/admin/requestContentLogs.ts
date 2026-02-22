@@ -20,6 +20,9 @@ export interface RequestContentLogItem {
   created_at: string
   user_email?: string
   api_key_name?: string
+  session_fingerprint?: string
+  message_offset?: number
+  message_count?: number
 }
 
 /**
@@ -37,6 +40,7 @@ export interface RequestContentLogFilters {
   api_key_id?: number
   model?: string
   platform?: string
+  session_fingerprint?: string
   start_date?: string
   end_date?: string
 }
@@ -80,9 +84,20 @@ export async function getById(id: number): Promise<RequestContentLogDetail> {
   return data
 }
 
+/**
+ * 按会话查询完整对话流
+ */
+export async function getSession(fingerprint: string): Promise<RequestContentLogDetail[]> {
+  const { data } = await apiClient.get<RequestContentLogDetail[]>(
+    `/admin/request-content-logs/session/${fingerprint}`
+  )
+  return data
+}
+
 export const requestContentLogsAPI = {
   list,
-  getById
+  getById,
+  getSession
 }
 
 export default requestContentLogsAPI

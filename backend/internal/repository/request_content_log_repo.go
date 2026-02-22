@@ -19,8 +19,9 @@ func NewRequestContentLogRepository(sqlDB *sql.DB) service.RequestContentLogRepo
 
 func (r *requestContentLogRepository) Create(ctx context.Context, log *service.RequestContentLog) error {
 	query := `
-		INSERT INTO request_content_logs (user_id, api_key_id, model, messages, platform, ip_address, user_agent)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO request_content_logs (user_id, api_key_id, model, messages, platform, ip_address, user_agent,
+		                                  session_fingerprint, message_offset, message_count)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		RETURNING id, created_at
 	`
 	return r.db.QueryRowContext(ctx, query,
@@ -31,6 +32,9 @@ func (r *requestContentLogRepository) Create(ctx context.Context, log *service.R
 		log.Platform,
 		log.IPAddress,
 		log.UserAgent,
+		nullableString(log.SessionFingerprint),
+		log.MessageOffset,
+		log.MessageCount,
 	).Scan(&log.ID, &log.CreatedAt)
 }
 
@@ -60,6 +64,11 @@ func (r *requestContentLogRepository) List(ctx context.Context, filters service.
 		args = append(args, filters.Platform)
 		argIdx++
 	}
+	if filters.SessionFingerprint != "" {
+		where += " AND rcl.session_fingerprint = $" + strconv.Itoa(argIdx)
+		args = append(args, filters.SessionFingerprint)
+		argIdx++
+	}
 	if !filters.StartDate.IsZero() {
 		where += " AND rcl.created_at >= $" + strconv.Itoa(argIdx)
 		args = append(args, filters.StartDate)
@@ -86,6 +95,7 @@ func (r *requestContentLogRepository) List(ctx context.Context, filters service.
 	listQuery := `
 		SELECT rcl.id, rcl.user_id, rcl.api_key_id, rcl.model, rcl.platform,
 		       rcl.ip_address, rcl.user_agent, rcl.created_at,
+		       rcl.session_fingerprint, rcl.message_offset, rcl.message_count,
 		       u.email AS user_email,
 		       ak.name AS api_key_name
 		FROM request_content_logs rcl
@@ -107,16 +117,18 @@ func (r *requestContentLogRepository) List(ctx context.Context, filters service.
 	var logs []*service.RequestContentLog
 	for rows.Next() {
 		log := &service.RequestContentLog{}
-		var userEmail, apiKeyName sql.NullString
+		var userEmail, apiKeyName, sessionFP sql.NullString
 		if err := rows.Scan(
 			&log.ID, &log.UserID, &log.APIKeyID, &log.Model, &log.Platform,
 			&log.IPAddress, &log.UserAgent, &log.CreatedAt,
+			&sessionFP, &log.MessageOffset, &log.MessageCount,
 			&userEmail, &apiKeyName,
 		); err != nil {
 			return nil, 0, err
 		}
 		log.UserEmail = userEmail.String
 		log.APIKeyName = apiKeyName.String
+		log.SessionFingerprint = sessionFP.String
 		logs = append(logs, log)
 	}
 
@@ -127,6 +139,7 @@ func (r *requestContentLogRepository) GetByID(ctx context.Context, id int64) (*s
 	query := `
 		SELECT rcl.id, rcl.user_id, rcl.api_key_id, rcl.model, rcl.messages, rcl.platform,
 		       rcl.ip_address, rcl.user_agent, rcl.created_at,
+		       rcl.session_fingerprint, rcl.message_offset, rcl.message_count,
 		       u.email AS user_email,
 		       ak.name AS api_key_name
 		FROM request_content_logs rcl
@@ -135,10 +148,11 @@ func (r *requestContentLogRepository) GetByID(ctx context.Context, id int64) (*s
 		WHERE rcl.id = $1
 	`
 	log := &service.RequestContentLog{}
-	var userEmail, apiKeyName sql.NullString
+	var userEmail, apiKeyName, sessionFP sql.NullString
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&log.ID, &log.UserID, &log.APIKeyID, &log.Model, &log.Messages, &log.Platform,
 		&log.IPAddress, &log.UserAgent, &log.CreatedAt,
+		&sessionFP, &log.MessageOffset, &log.MessageCount,
 		&userEmail, &apiKeyName,
 	)
 	if err != nil {
@@ -146,7 +160,48 @@ func (r *requestContentLogRepository) GetByID(ctx context.Context, id int64) (*s
 	}
 	log.UserEmail = userEmail.String
 	log.APIKeyName = apiKeyName.String
+	log.SessionFingerprint = sessionFP.String
 	return log, nil
+}
+
+func (r *requestContentLogRepository) ListBySession(ctx context.Context, fingerprint string) ([]*service.RequestContentLog, error) {
+	query := `
+		SELECT rcl.id, rcl.user_id, rcl.api_key_id, rcl.model, rcl.messages, rcl.platform,
+		       rcl.ip_address, rcl.user_agent, rcl.created_at,
+		       rcl.session_fingerprint, rcl.message_offset, rcl.message_count,
+		       u.email AS user_email,
+		       ak.name AS api_key_name
+		FROM request_content_logs rcl
+		LEFT JOIN users u ON rcl.user_id = u.id
+		LEFT JOIN api_keys ak ON rcl.api_key_id = ak.id
+		WHERE rcl.session_fingerprint = $1
+		ORDER BY rcl.created_at ASC
+	`
+	rows, err := r.db.QueryContext(ctx, query, fingerprint)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	var logs []*service.RequestContentLog
+	for rows.Next() {
+		log := &service.RequestContentLog{}
+		var userEmail, apiKeyName, sessionFP sql.NullString
+		if err := rows.Scan(
+			&log.ID, &log.UserID, &log.APIKeyID, &log.Model, &log.Messages, &log.Platform,
+			&log.IPAddress, &log.UserAgent, &log.CreatedAt,
+			&sessionFP, &log.MessageOffset, &log.MessageCount,
+			&userEmail, &apiKeyName,
+		); err != nil {
+			return nil, err
+		}
+		log.UserEmail = userEmail.String
+		log.APIKeyName = apiKeyName.String
+		log.SessionFingerprint = sessionFP.String
+		logs = append(logs, log)
+	}
+
+	return logs, rows.Err()
 }
 
 func (r *requestContentLogRepository) DeleteBefore(ctx context.Context, retentionDays int) (int64, error) {
@@ -156,4 +211,12 @@ func (r *requestContentLogRepository) DeleteBefore(ctx context.Context, retentio
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+// nullableString 将空字符串转为 sql.NullString
+func nullableString(s string) sql.NullString {
+	if s == "" {
+		return sql.NullString{}
+	}
+	return sql.NullString{String: s, Valid: true}
 }
