@@ -13,19 +13,13 @@ import (
 // bodyCapture 透明包装 io.ReadCloser，在 handler 读取时同步复制到 buffer
 type bodyCapture struct {
 	io.ReadCloser
-	buf     bytes.Buffer
-	maxSize int
+	buf bytes.Buffer
 }
 
 func (bc *bodyCapture) Read(p []byte) (int, error) {
 	n, err := bc.ReadCloser.Read(p)
-	if n > 0 && bc.buf.Len() < bc.maxSize {
-		remaining := bc.maxSize - bc.buf.Len()
-		if n <= remaining {
-			_, _ = bc.buf.Write(p[:n])
-		} else {
-			_, _ = bc.buf.Write(p[:remaining])
-		}
+	if n > 0 {
+		_, _ = bc.buf.Write(p[:n])
 	}
 	return n, err
 }
@@ -44,13 +38,9 @@ func RequestContentLogger(svc *service.RequestContentLogService, platform string
 			return
 		}
 
-		// body 捕获上限 2MB：需完整读取请求体才能正确解析 JSON
-		// （存储截断在 service 层的 MaxSize 控制，与此无关）
-		const bodyCaptureLimit = 2 * 1024 * 1024
-
+		// 捕获请求体：不设上限，上游 RequestBodyLimit 已限制总大小
 		capture := &bodyCapture{
 			ReadCloser: c.Request.Body,
-			maxSize:    bodyCaptureLimit,
 		}
 		c.Request.Body = capture
 
