@@ -55,6 +55,15 @@ type RequestContentLogRepository interface {
 	DeleteBefore(ctx context.Context, retentionDays int) (int64, error)
 }
 
+// sessionTracker 会话追踪器：同一用户+API Key 在时间窗口内的请求归为同一会话
+type sessionTracker struct {
+	fingerprint string
+	lastSeen    time.Time
+}
+
+// sessionWindow 会话超时窗口：超过此时间视为新会话
+const sessionWindow = 30 * time.Minute
+
 // RequestContentLogService 请求内容日志服务
 type RequestContentLogService struct {
 	repo     RequestContentLogRepository
@@ -62,6 +71,9 @@ type RequestContentLogService struct {
 	stopCh   chan struct{}
 	stopOnce sync.Once
 	wg       sync.WaitGroup
+
+	// 会话追踪缓存: "userID:apiKeyID" → sessionTracker
+	sessionCache sync.Map
 }
 
 // NewRequestContentLogService 创建请求内容日志服务
@@ -110,6 +122,7 @@ func (s *RequestContentLogService) Start() {
 			select {
 			case <-ticker.C:
 				s.cleanup()
+				s.evictStaleSessions()
 			case <-s.stopCh:
 				return
 			}
@@ -163,9 +176,8 @@ func (s *RequestContentLogService) LogAsync(body []byte, userID, apiKeyID int64,
 
 	totalCount := len(messageArray)
 
-	// 提取第一条 user 消息的内容，用于计算 session fingerprint
-	firstUserContent := extractFirstUserContent(messageArray, platform)
-	fingerprint := computeSessionFingerprint(userID, apiKeyID, firstUserContent)
+	// 基于时间窗口的会话识别：同一 userID+apiKeyID 在 30 分钟内的请求归为同一会话
+	fingerprint := s.resolveSessionFingerprint(userID, apiKeyID)
 
 	// 精简消息内容：保留全部文本，移除大体积非文本内容（图片、base64 等）
 	simplified := simplifyMessages(messageArray, platform)
@@ -243,93 +255,44 @@ func (s *RequestContentLogService) cleanup() {
 	}
 }
 
-// computeSessionFingerprint 计算 session 指纹
-// SHA256(userID:apiKeyID:firstUserContent)[:16]
-func computeSessionFingerprint(userID, apiKeyID int64, firstUserContent string) string {
-	raw := fmt.Sprintf("%d:%d:%s", userID, apiKeyID, firstUserContent)
+// resolveSessionFingerprint 基于时间窗口的会话识别
+// 同一 userID+apiKeyID 在 sessionWindow 内的请求归为同一会话
+// 超时后自动生成新指纹（新会话）
+func (s *RequestContentLogService) resolveSessionFingerprint(userID, apiKeyID int64) string {
+	cacheKey := fmt.Sprintf("%d:%d", userID, apiKeyID)
+	now := time.Now()
+
+	if val, ok := s.sessionCache.Load(cacheKey); ok {
+		tracker := val.(*sessionTracker)
+		if now.Sub(tracker.lastSeen) < sessionWindow {
+			// 在时间窗口内：复用同一指纹，更新最后活跃时间
+			tracker.lastSeen = now
+			return tracker.fingerprint
+		}
+	}
+
+	// 超时或新用户：生成新指纹
+	raw := fmt.Sprintf("%d:%d:%d", userID, apiKeyID, now.UnixNano())
 	hash := sha256.Sum256([]byte(raw))
-	return hex.EncodeToString(hash[:])[:16]
+	fp := hex.EncodeToString(hash[:])[:16]
+
+	s.sessionCache.Store(cacheKey, &sessionTracker{
+		fingerprint: fp,
+		lastSeen:    now,
+	})
+	return fp
 }
 
-// extractFirstUserContent 从消息数组中提取第一条 user 角色消息的文本内容
-// 兼容 OpenAI/Anthropic (role=user) 和 Gemini (role=user, parts) 格式
-func extractFirstUserContent(messages []json.RawMessage, platform string) string {
-	for _, msg := range messages {
-		var parsed struct {
-			Role    string          `json:"role"`
-			Content json.RawMessage `json:"content"`
-			Parts   json.RawMessage `json:"parts"` // Gemini 格式
+// evictStaleSessions 清理超过 1 小时未活跃的会话追踪缓存
+func (s *RequestContentLogService) evictStaleSessions() {
+	threshold := time.Now().Add(-1 * time.Hour)
+	s.sessionCache.Range(func(key, value any) bool {
+		tracker := value.(*sessionTracker)
+		if tracker.lastSeen.Before(threshold) {
+			s.sessionCache.Delete(key)
 		}
-		if err := json.Unmarshal(msg, &parsed); err != nil {
-			continue
-		}
-		if parsed.Role != "user" {
-			continue
-		}
-
-		// 尝试从 content 获取文本
-		text := extractTextFromField(parsed.Content)
-		if text != "" {
-			return text
-		}
-
-		// Gemini 格式：从 parts 获取文本
-		text = extractTextFromParts(parsed.Parts)
-		if text != "" {
-			return text
-		}
-	}
-	return ""
-}
-
-// extractTextFromField 从 content 字段提取文本
-// content 可能是字符串 "hello" 或数组 [{"type":"text","text":"hello"}, ...]
-func extractTextFromField(raw json.RawMessage) string {
-	if len(raw) == 0 {
-		return ""
-	}
-
-	// 尝试作为字符串解析
-	var str string
-	if err := json.Unmarshal(raw, &str); err == nil {
-		return str
-	}
-
-	// 尝试作为 content blocks 数组解析（Anthropic 格式）
-	var blocks []struct {
-		Type string `json:"type"`
-		Text string `json:"text"`
-	}
-	if err := json.Unmarshal(raw, &blocks); err == nil {
-		for _, b := range blocks {
-			if b.Type == "text" && b.Text != "" {
-				return b.Text
-			}
-		}
-	}
-
-	return ""
-}
-
-// extractTextFromParts 从 Gemini parts 字段提取文本
-// parts: [{"text": "hello"}, ...]
-func extractTextFromParts(raw json.RawMessage) string {
-	if len(raw) == 0 {
-		return ""
-	}
-
-	var parts []struct {
-		Text string `json:"text"`
-	}
-	if err := json.Unmarshal(raw, &parts); err == nil {
-		for _, p := range parts {
-			if p.Text != "" {
-				return p.Text
-			}
-		}
-	}
-
-	return ""
+		return true
+	})
 }
 
 // simplifyMessages 精简消息数组：保留所有文本内容，移除大体积非文本内容
