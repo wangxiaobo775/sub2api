@@ -44,9 +44,13 @@ func RequestContentLogger(svc *service.RequestContentLogService, platform string
 			return
 		}
 
+		// body 捕获上限 2MB：需完整读取请求体才能正确解析 JSON
+		// （存储截断在 service 层的 MaxSize 控制，与此无关）
+		const bodyCaptureLimit = 2 * 1024 * 1024
+
 		capture := &bodyCapture{
 			ReadCloser: c.Request.Body,
-			maxSize:    svc.MaxSize(),
+			maxSize:    bodyCaptureLimit,
 		}
 		c.Request.Body = capture
 
@@ -54,9 +58,6 @@ func RequestContentLogger(svc *service.RequestContentLogService, platform string
 
 		body := capture.buf.Bytes()
 		if len(body) == 0 || c.Writer.Status() >= 500 {
-			if len(body) == 0 {
-				log.Printf("[RequestContentLog] Empty body capture (status=%d, method=%s, path=%s)", c.Writer.Status(), c.Request.Method, c.Request.URL.Path)
-			}
 			return
 		}
 
