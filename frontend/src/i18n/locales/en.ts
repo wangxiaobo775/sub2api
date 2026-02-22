@@ -318,6 +318,7 @@ export default {
     export: 'Export',
     import: 'Import',
     actions: 'Actions',
+    view: 'View',
     status: 'Status',
     name: 'Name',
     email: 'Email',
@@ -330,6 +331,7 @@ export default {
     all: 'All',
     none: 'None',
     noData: 'No data',
+    loadFailed: 'Failed to load',
     expand: 'Expand',
     collapse: 'Collapse',
     success: 'Success',
@@ -400,6 +402,7 @@ export default {
     redeemCodes: 'Redeem Codes',
     ops: 'Ops',
     promoCodes: 'Promo Codes',
+    requestContentLogs: 'Request Logs',
     settings: 'Settings',
     myAccount: 'My Account',
     lightMode: 'Light Mode',
@@ -2550,6 +2553,23 @@ export default {
           canceled: 'Canceled'
         }
       }
+    },
+
+    // Request Content Logs
+    requestContentLogs: {
+      title: 'Request Content Logs',
+      description: 'View API request messages content',
+      detail: 'Request Content Detail',
+      time: 'Time',
+      user: 'User',
+      apiKey: 'API Key',
+      model: 'Model',
+      platform: 'Platform',
+      userId: 'User ID',
+      startDate: 'Start Date',
+      endDate: 'End Date',
+      filterModel: 'Model name',
+      filterUserId: 'User ID'
     },
 
     // Ops Monitoring

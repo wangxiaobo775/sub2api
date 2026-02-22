@@ -79,6 +79,7 @@ func provideCleanup(
 	openaiOAuth *service.OpenAIOAuthService,
 	geminiOAuth *service.GeminiOAuthService,
 	antigravityOAuth *service.AntigravityOAuthService,
+	requestContentLog *service.RequestContentLogService,
 ) func() {
 	return func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -169,6 +170,12 @@ func provideCleanup(
 			}},
 			{"AntigravityOAuthService", func() error {
 				antigravityOAuth.Stop()
+				return nil
+			}},
+			{"RequestContentLogService", func() error {
+				if requestContentLog != nil {
+					requestContentLog.Stop()
+				}
 				return nil
 			}},
 			{"Redis", func() error {

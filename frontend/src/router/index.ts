@@ -355,6 +355,18 @@ const routes: RouteRecordRaw[] = [
       descriptionKey: 'admin.usage.description'
     }
   },
+  {
+    path: '/admin/request-content-logs',
+    name: 'AdminRequestContentLogs',
+    component: () => import('@/views/admin/RequestContentLogsView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Request Content Logs',
+      titleKey: 'admin.requestContentLogs.title',
+      descriptionKey: 'admin.requestContentLogs.description'
+    }
+  },
 
   // ==================== 404 Not Found ====================
   {

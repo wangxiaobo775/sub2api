@@ -62,8 +62,9 @@ type Config struct {
 	TokenRefresh TokenRefreshConfig         `mapstructure:"token_refresh"`
 	RunMode      string                     `mapstructure:"run_mode" yaml:"run_mode"`
 	Timezone     string                     `mapstructure:"timezone"` // e.g. "Asia/Shanghai", "UTC"
-	Gemini       GeminiConfig               `mapstructure:"gemini"`
-	Update       UpdateConfig               `mapstructure:"update"`
+	Gemini            GeminiConfig               `mapstructure:"gemini"`
+	Update            UpdateConfig               `mapstructure:"update"`
+	RequestContentLog RequestContentLogConfig    `mapstructure:"request_content_log"`
 }
 
 type GeminiConfig struct {
@@ -93,6 +94,16 @@ type UpdateConfig struct {
 	// 支持 http/https/socks5/socks5h 协议
 	// 例如: "http://127.0.0.1:7890", "socks5://127.0.0.1:1080"
 	ProxyURL string `mapstructure:"proxy_url"`
+}
+
+// RequestContentLogConfig 请求内容日志配置
+type RequestContentLogConfig struct {
+	// Enabled 是否启用请求内容记录（默认关闭）
+	Enabled bool `mapstructure:"enabled"`
+	// RetentionDays 日志保留天数（默认 30 天）
+	RetentionDays int `mapstructure:"retention_days"`
+	// MaxSize 单条 messages 最大存储字节（超出截断，默认 65536）
+	MaxSize int `mapstructure:"max_size"`
 }
 
 type LinuxDoConnectConfig struct {
@@ -969,6 +980,11 @@ func setDefaults() {
 	viper.SetDefault("gemini.oauth.client_secret", "")
 	viper.SetDefault("gemini.oauth.scopes", "")
 	viper.SetDefault("gemini.quota.policy", "")
+
+	// RequestContentLog
+	viper.SetDefault("request_content_log.enabled", false)
+	viper.SetDefault("request_content_log.retention_days", 30)
+	viper.SetDefault("request_content_log.max_size", 65536)
 }
 
 func (c *Config) Validate() error {

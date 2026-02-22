@@ -17,6 +17,7 @@ func RegisterGatewayRoutes(
 	apiKeyService *service.APIKeyService,
 	subscriptionService *service.SubscriptionService,
 	opsService *service.OpsService,
+	requestContentLogService *service.RequestContentLogService,
 	cfg *config.Config,
 ) {
 	bodyLimit := middleware.RequestBodyLimit(cfg.Gateway.MaxBodySize)
@@ -29,6 +30,7 @@ func RegisterGatewayRoutes(
 	gateway.Use(clientRequestID)
 	gateway.Use(opsErrorLogger)
 	gateway.Use(gin.HandlerFunc(apiKeyAuth))
+	gateway.Use(middleware.RequestContentLogger(requestContentLogService, "anthropic"))
 	{
 		gateway.POST("/messages", h.Gateway.Messages)
 		gateway.POST("/messages/count_tokens", h.Gateway.CountTokens)
@@ -44,6 +46,7 @@ func RegisterGatewayRoutes(
 	gemini.Use(clientRequestID)
 	gemini.Use(opsErrorLogger)
 	gemini.Use(middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg))
+	gemini.Use(middleware.RequestContentLogger(requestContentLogService, "gemini"))
 	{
 		gemini.GET("/models", h.Gateway.GeminiV1BetaListModels)
 		gemini.GET("/models/:model", h.Gateway.GeminiV1BetaGetModel)
@@ -52,7 +55,8 @@ func RegisterGatewayRoutes(
 	}
 
 	// OpenAI Responses API（不带v1前缀的别名）
-	r.POST("/responses", bodyLimit, clientRequestID, opsErrorLogger, gin.HandlerFunc(apiKeyAuth), h.OpenAIGateway.Responses)
+	r.POST("/responses", bodyLimit, clientRequestID, opsErrorLogger, gin.HandlerFunc(apiKeyAuth),
+		middleware.RequestContentLogger(requestContentLogService, "openai"), h.OpenAIGateway.Responses)
 
 	// Antigravity 模型列表
 	r.GET("/antigravity/models", gin.HandlerFunc(apiKeyAuth), h.Gateway.AntigravityModels)
@@ -64,6 +68,7 @@ func RegisterGatewayRoutes(
 	antigravityV1.Use(opsErrorLogger)
 	antigravityV1.Use(middleware.ForcePlatform(service.PlatformAntigravity))
 	antigravityV1.Use(gin.HandlerFunc(apiKeyAuth))
+	antigravityV1.Use(middleware.RequestContentLogger(requestContentLogService, "antigravity"))
 	{
 		antigravityV1.POST("/messages", h.Gateway.Messages)
 		antigravityV1.POST("/messages/count_tokens", h.Gateway.CountTokens)
@@ -77,6 +82,7 @@ func RegisterGatewayRoutes(
 	antigravityV1Beta.Use(opsErrorLogger)
 	antigravityV1Beta.Use(middleware.ForcePlatform(service.PlatformAntigravity))
 	antigravityV1Beta.Use(middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg))
+	antigravityV1Beta.Use(middleware.RequestContentLogger(requestContentLogService, "antigravity"))
 	{
 		antigravityV1Beta.GET("/models", h.Gateway.GeminiV1BetaListModels)
 		antigravityV1Beta.GET("/models/:model", h.Gateway.GeminiV1BetaGetModel)

@@ -318,6 +318,7 @@ export default {
     export: '导出',
     import: '导入',
     actions: '操作',
+    view: '查看',
     status: '状态',
     name: '名称',
     email: '邮箱',
@@ -330,6 +331,7 @@ export default {
     all: '全部',
     none: '无',
     noData: '暂无数据',
+    loadFailed: '加载失败',
     expand: '展开',
     collapse: '收起',
     success: '成功',
@@ -400,6 +402,7 @@ export default {
     redeemCodes: '兑换码',
     ops: '运维监控',
     promoCodes: '优惠码',
+    requestContentLogs: '请求内容日志',
     settings: '系统设置',
     myAccount: '我的账户',
     lightMode: '浅色模式',
@@ -2717,6 +2720,23 @@ export default {
           canceled: '已取消'
         }
       }
+    },
+
+    // 请求内容日志
+    requestContentLogs: {
+      title: '请求内容日志',
+      description: '查看 API 请求的 messages 内容',
+      detail: '请求内容详情',
+      time: '时间',
+      user: '用户',
+      apiKey: 'API 密钥',
+      model: '模型',
+      platform: '平台',
+      userId: '用户 ID',
+      startDate: '开始时间',
+      endDate: '结束时间',
+      filterModel: '输入模型名',
+      filterUserId: '用户 ID'
     },
 
     // Ops Monitoring

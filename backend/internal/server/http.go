@@ -34,6 +34,7 @@ func ProvideRouter(
 	apiKeyService *service.APIKeyService,
 	subscriptionService *service.SubscriptionService,
 	opsService *service.OpsService,
+	requestContentLogService *service.RequestContentLogService,
 	settingService *service.SettingService,
 	redisClient *redis.Client,
 ) *gin.Engine {
@@ -53,7 +54,7 @@ func ProvideRouter(
 		}
 	}
 
-	return SetupRouter(r, handlers, jwtAuth, adminAuth, apiKeyAuth, apiKeyService, subscriptionService, opsService, settingService, cfg, redisClient)
+	return SetupRouter(r, handlers, jwtAuth, adminAuth, apiKeyAuth, apiKeyService, subscriptionService, opsService, requestContentLogService, settingService, cfg, redisClient)
 }
 
 // ProvideHTTPServer 提供 HTTP 服务器

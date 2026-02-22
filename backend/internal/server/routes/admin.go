@@ -70,6 +70,9 @@ func RegisterAdminRoutes(
 
 		// 错误透传规则管理
 		registerErrorPassthroughRoutes(admin, h)
+
+		// 请求内容日志
+		registerRequestContentLogRoutes(admin, h)
 	}
 }
 
@@ -410,5 +413,13 @@ func registerErrorPassthroughRoutes(admin *gin.RouterGroup, h *handler.Handlers)
 		rules.POST("", h.Admin.ErrorPassthrough.Create)
 		rules.PUT("/:id", h.Admin.ErrorPassthrough.Update)
 		rules.DELETE("/:id", h.Admin.ErrorPassthrough.Delete)
+	}
+}
+
+func registerRequestContentLogRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	logs := admin.Group("/request-content-logs")
+	{
+		logs.GET("", h.Admin.RequestContentLog.List)
+		logs.GET("/:id", h.Admin.RequestContentLog.GetByID)
 	}
 }
