@@ -55,12 +55,6 @@ type RequestContentLogRepository interface {
 	DeleteBefore(ctx context.Context, retentionDays int) (int64, error)
 }
 
-// sessionState 内存中的 session 状态（LRU 缓存条目）
-type sessionState struct {
-	messageCount int
-	lastSeen     time.Time
-}
-
 // RequestContentLogService 请求内容日志服务
 type RequestContentLogService struct {
 	repo     RequestContentLogRepository
@@ -68,9 +62,6 @@ type RequestContentLogService struct {
 	stopCh   chan struct{}
 	stopOnce sync.Once
 	wg       sync.WaitGroup
-
-	// session LRU 缓存: fingerprint → sessionState
-	sessionCache sync.Map
 }
 
 // NewRequestContentLogService 创建请求内容日志服务
@@ -94,10 +85,10 @@ func (s *RequestContentLogService) IsEnabled() bool {
 	return s != nil && s.cfg != nil && s.cfg.Enabled
 }
 
-// MaxSize 返回单条 messages 最大存储字节
+// MaxSize 返回单条 messages 最大存储字节（完整存储模式默认 512KB）
 func (s *RequestContentLogService) MaxSize() int {
 	if s.cfg == nil || s.cfg.MaxSize <= 0 {
-		return 65536
+		return 524288
 	}
 	return s.cfg.MaxSize
 }
@@ -119,7 +110,6 @@ func (s *RequestContentLogService) Start() {
 			select {
 			case <-ticker.C:
 				s.cleanup()
-				s.evictStaleSessions()
 			case <-s.stopCh:
 				return
 			}
@@ -139,7 +129,8 @@ func (s *RequestContentLogService) Stop() {
 	s.wg.Wait()
 }
 
-// LogAsync 异步提取 messages 并增量存储（在 goroutine 中调用）
+// LogAsync 异步提取 messages 并存储完整对话（在 goroutine 中调用）
+// 每次请求存储完整的 messages 数组，非文本内容（图片、tool_use 等）精简为占位符以节省空间
 func (s *RequestContentLogService) LogAsync(body []byte, userID, apiKeyID int64, clientIP, ua, platform string) {
 	if !s.IsEnabled() {
 		return
@@ -147,9 +138,9 @@ func (s *RequestContentLogService) LogAsync(body []byte, userID, apiKeyID int64,
 
 	// 部分解析 JSON，提取 model + messages/contents
 	var partial struct {
-		Model    string            `json:"model"`
-		Messages json.RawMessage   `json:"messages"`
-		Contents json.RawMessage   `json:"contents"` // Gemini 格式
+		Model    string          `json:"model"`
+		Messages json.RawMessage `json:"messages"`
+		Contents json.RawMessage `json:"contents"` // Gemini 格式
 	}
 	if err := json.Unmarshal(body, &partial); err != nil {
 		return
@@ -170,51 +161,25 @@ func (s *RequestContentLogService) LogAsync(body []byte, userID, apiKeyID int64,
 		return
 	}
 
+	totalCount := len(messageArray)
+
 	// 提取第一条 user 消息的内容，用于计算 session fingerprint
 	firstUserContent := extractFirstUserContent(messageArray, platform)
-
-	// 计算 session fingerprint
 	fingerprint := computeSessionFingerprint(userID, apiKeyID, firstUserContent)
 
-	// 查 LRU 缓存获取上一次的 message_count
-	totalCount := len(messageArray)
-	var deltaMessages []json.RawMessage
-	var messageOffset int
+	// 精简消息内容：保留全部文本，移除大体积非文本内容（图片、base64 等）
+	simplified := simplifyMessages(messageArray, platform)
 
-	if val, ok := s.sessionCache.Load(fingerprint); ok {
-		state := val.(*sessionState)
-		prevCount := state.messageCount
-		if totalCount > prevCount {
-			// 增量：只保存新增的消息
-			deltaMessages = messageArray[prevCount:]
-			messageOffset = prevCount
-		} else {
-			// 对话重置或消息数相同/减少，存储全部
-			deltaMessages = messageArray
-			messageOffset = 0
-		}
-	} else {
-		// 新会话，存储全部
-		deltaMessages = messageArray
-		messageOffset = 0
-	}
-
-	// 更新缓存
-	s.sessionCache.Store(fingerprint, &sessionState{
-		messageCount: totalCount,
-		lastSeen:     time.Now(),
-	})
-
-	// 将 delta messages 序列化
-	deltaJSON, err := json.Marshal(deltaMessages)
+	// 序列化
+	messagesJSON, err := json.Marshal(simplified)
 	if err != nil {
 		return
 	}
 
-	// 截断 messages 到最大大小
+	// 截断到最大大小
 	maxSize := s.MaxSize()
-	if len(deltaJSON) > maxSize {
-		deltaJSON = deltaJSON[:maxSize]
+	if len(messagesJSON) > maxSize {
+		messagesJSON = messagesJSON[:maxSize]
 	}
 
 	// 截断 User-Agent
@@ -229,12 +194,12 @@ func (s *RequestContentLogService) LogAsync(body []byte, userID, apiKeyID int64,
 		UserID:             userID,
 		APIKeyID:           apiKeyID,
 		Model:              partial.Model,
-		Messages:           deltaJSON,
+		Messages:           messagesJSON,
 		Platform:           platform,
 		IPAddress:          clientIP,
 		UserAgent:          ua,
 		SessionFingerprint: fingerprint,
-		MessageOffset:      messageOffset,
+		MessageOffset:      0,
 		MessageCount:       totalCount,
 	}
 
@@ -276,18 +241,6 @@ func (s *RequestContentLogService) cleanup() {
 	if deleted > 0 {
 		log.Printf("[RequestContentLog] Cleaned up %d records older than %d days", deleted, retentionDays)
 	}
-}
-
-// evictStaleSessions 清理超过 1 小时未访问的 session 缓存条目
-func (s *RequestContentLogService) evictStaleSessions() {
-	threshold := time.Now().Add(-1 * time.Hour)
-	s.sessionCache.Range(func(key, value any) bool {
-		state := value.(*sessionState)
-		if state.lastSeen.Before(threshold) {
-			s.sessionCache.Delete(key)
-		}
-		return true
-	})
 }
 
 // computeSessionFingerprint 计算 session 指纹
@@ -377,4 +330,135 @@ func extractTextFromParts(raw json.RawMessage) string {
 	}
 
 	return ""
+}
+
+// simplifyMessages 精简消息数组：保留所有文本内容，移除大体积非文本内容
+// - user 消息：完整保留文本；图片/文件替换为占位符
+// - assistant 消息：保留文本；tool_use 仅保留名称和输入摘要
+// - system 消息：完整保留
+func simplifyMessages(messages []json.RawMessage, _ string) []json.RawMessage {
+	result := make([]json.RawMessage, 0, len(messages))
+
+	for _, msg := range messages {
+		simplified := simplifyOneMessage(msg)
+		if simplified != nil {
+			result = append(result, simplified)
+		}
+	}
+	return result
+}
+
+// simplifyOneMessage 精简单条消息
+func simplifyOneMessage(raw json.RawMessage) json.RawMessage {
+	// 先解析出基本结构
+	var base map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &base); err != nil {
+		return raw // 解析失败则原样返回
+	}
+
+	// Gemini 格式：精简 parts
+	if partsRaw, ok := base["parts"]; ok {
+		base["parts"] = simplifyGeminiParts(partsRaw)
+		out, _ := json.Marshal(base)
+		return out
+	}
+
+	// OpenAI/Anthropic 格式：精简 content
+	contentRaw, hasContent := base["content"]
+	if !hasContent {
+		// 没有 content 字段（可能只有 role），原样返回
+		out, _ := json.Marshal(base)
+		return out
+	}
+
+	// content 是字符串 → 完整保留（OpenAI 格式）
+	if contentRaw[0] == '"' {
+		out, _ := json.Marshal(base)
+		return out
+	}
+
+	// content 是数组（Anthropic content blocks）→ 精简
+	var blocks []map[string]any
+	if err := json.Unmarshal(contentRaw, &blocks); err == nil {
+		simplified := simplifyContentBlocks(blocks)
+		simplifiedJSON, _ := json.Marshal(simplified)
+		base["content"] = simplifiedJSON
+		out, _ := json.Marshal(base)
+		return out
+	}
+
+	// 其他格式，原样返回
+	out, _ := json.Marshal(base)
+	return out
+}
+
+// simplifyContentBlocks 精简 Anthropic content blocks
+// 保留 text 块完整内容，其他块（image/tool_use/tool_result）替换为摘要
+func simplifyContentBlocks(blocks []map[string]any) []map[string]any {
+	result := make([]map[string]any, 0, len(blocks))
+	for _, block := range blocks {
+		blockType, _ := block["type"].(string)
+		switch blockType {
+		case "text":
+			// 文本块完整保留
+			result = append(result, block)
+		case "image":
+			// 图片替换为占位符
+			result = append(result, map[string]any{
+				"type": "text",
+				"text": "[image]",
+			})
+		case "tool_use":
+			// 工具调用：保留名称，省略输入详情
+			name, _ := block["name"].(string)
+			result = append(result, map[string]any{
+				"type": "text",
+				"text": fmt.Sprintf("[tool_use: %s]", name),
+			})
+		case "tool_result":
+			// 工具结果：仅保留占位符
+			result = append(result, map[string]any{
+				"type": "text",
+				"text": "[tool_result]",
+			})
+		default:
+			// 未知类型：保留 type 标记
+			result = append(result, map[string]any{
+				"type": "text",
+				"text": fmt.Sprintf("[%s]", blockType),
+			})
+		}
+	}
+	return result
+}
+
+// simplifyGeminiParts 精简 Gemini parts
+// 保留 text 部分，移除 inline_data（图片等大体积内容）
+func simplifyGeminiParts(raw json.RawMessage) json.RawMessage {
+	var parts []map[string]any
+	if err := json.Unmarshal(raw, &parts); err != nil {
+		return raw
+	}
+
+	simplified := make([]map[string]any, 0, len(parts))
+	for _, part := range parts {
+		if _, hasText := part["text"]; hasText {
+			// 文本部分完整保留
+			simplified = append(simplified, part)
+		} else if _, hasInline := part["inline_data"]; hasInline {
+			// 内联数据（图片等）替换为占位符
+			simplified = append(simplified, map[string]any{"text": "[inline_data]"})
+		} else if _, hasFuncCall := part["functionCall"]; hasFuncCall {
+			// 函数调用替换为占位符
+			simplified = append(simplified, map[string]any{"text": "[functionCall]"})
+		} else if _, hasFuncResp := part["functionResponse"]; hasFuncResp {
+			simplified = append(simplified, map[string]any{"text": "[functionResponse]"})
+		} else {
+			// 未知类型原样保留
+			simplified = append(simplified, part)
+		}
+	}
+
+	out, _ := json.Marshal(simplified)
+	return out
 }

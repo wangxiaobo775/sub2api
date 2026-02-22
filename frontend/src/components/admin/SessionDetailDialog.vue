@@ -136,35 +136,39 @@ const lastMessageCount = computed(() => {
 })
 
 /**
- * 将所有 delta 的 messages 拼接为完整对话流
- * 每个 delta 存储的是增量消息，按顺序拼接即可
+ * 展示最后一条日志的完整对话（每条日志现在包含完整 messages）
+ * 在同一 session 中，最后一条日志的 messages 是最完整的
  */
 const mergedMessages = computed<ChatMessage[]>(() => {
-  const all: ChatMessage[] = []
-  for (const entry of sessionLogs.value) {
-    const msgs = normalizeMessages(entry.messages)
-    all.push(...msgs)
-  }
-  return all
+  if (sessionLogs.value.length === 0) return []
+  const last = sessionLogs.value[sessionLogs.value.length - 1]
+  return normalizeMessages(last.messages)
 })
 
 /**
- * 在每个 delta 分界处插入时间戳分隔线
+ * 在每次请求的新增消息起始位置插入时间戳分隔线
+ * 通过 message_count 反推每次请求新增了哪些消息
  */
 const dividers = computed<DividerInfo[]>(() => {
   const result: DividerInfo[] = []
-  let offset = 0
+  const totalMessages = mergedMessages.value.length
+
   for (let i = 0; i < sessionLogs.value.length; i++) {
     const entry = sessionLogs.value[i]
-    const msgs = normalizeMessages(entry.messages)
-    // 第一个 delta 不需要分隔线（从开头开始）
-    if (i > 0 && msgs.length > 0) {
+
+    // 找到这条请求之前的消息数（即上一条请求的 message_count）
+    let prevCount = 0
+    if (i > 0) {
+      prevCount = sessionLogs.value[i - 1].message_count || 0
+    }
+
+    // 只在有新增消息时插入分隔线（跳过第一条）
+    if (i > 0 && prevCount < totalMessages) {
       result.push({
-        beforeIndex: offset,
+        beforeIndex: prevCount,
         label: `#${i + 1} · ${formatTime(entry.created_at)}${entry.model ? ' · ' + entry.model : ''}`
       })
     }
-    offset += msgs.length
   }
   return result
 })
