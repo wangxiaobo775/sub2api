@@ -129,7 +129,8 @@ type LinuxDoConnectConfig struct {
 
 // DingTalkOAuthConfig 钉钉 OAuth 登录配置
 type DingTalkOAuthConfig struct {
-	Enabled             bool   `mapstructure:"enabled"`
+	Enabled bool `mapstructure:"enabled"`
+
 	ClientID            string `mapstructure:"client_id"`              // AppKey
 	ClientSecret        string `mapstructure:"client_secret"`          // AppSecret
 	AuthorizeURL        string `mapstructure:"authorize_url"`          // 授权 URL
