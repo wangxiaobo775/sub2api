@@ -149,11 +149,14 @@ func (s *RequestContentLogService) LogAsync(body []byte, userID, apiKeyID int64,
 		return
 	}
 
-	// 部分解析 JSON，提取 model + messages/contents
+	// 部分解析 JSON，提取 model + messages/contents + metadata
 	var partial struct {
 		Model    string          `json:"model"`
 		Messages json.RawMessage `json:"messages"`
 		Contents json.RawMessage `json:"contents"` // Gemini 格式
+		Metadata *struct {
+			UserID string `json:"user_id"`
+		} `json:"metadata"`
 	}
 	if err := json.Unmarshal(body, &partial); err != nil {
 		return
@@ -176,8 +179,19 @@ func (s *RequestContentLogService) LogAsync(body []byte, userID, apiKeyID int64,
 
 	totalCount := len(messageArray)
 
-	// 基于时间窗口的会话识别：同一 userID+apiKeyID 在 30 分钟内的请求归为同一会话
-	fingerprint := s.resolveSessionFingerprint(userID, apiKeyID)
+	// 会话识别策略：
+	// 1. 优先使用 metadata.user_id（客户端提供的会话标识，如 Claude Code 的 session ID）
+	// 2. 回退：同一 userID+apiKeyID 在 30 分钟滑动窗口内归为同一会话
+	var fingerprint string
+	if partial.Metadata != nil && partial.Metadata.UserID != "" {
+		// 客户端提供了会话标识，直接用它生成指纹
+		raw := fmt.Sprintf("%d:%d:%s", userID, apiKeyID, partial.Metadata.UserID)
+		hash := sha256.Sum256([]byte(raw))
+		fingerprint = hex.EncodeToString(hash[:])[:16]
+	} else {
+		// 回退到时间窗口方案
+		fingerprint = s.resolveSessionFingerprint(userID, apiKeyID)
+	}
 
 	// 精简消息内容：保留全部文本，移除大体积非文本内容（图片、base64 等）
 	simplified := simplifyMessages(messageArray, platform)
