@@ -22,9 +22,9 @@ func (bc *bodyCapture) Read(p []byte) (int, error) {
 	if n > 0 && bc.buf.Len() < bc.maxSize {
 		remaining := bc.maxSize - bc.buf.Len()
 		if n <= remaining {
-			bc.buf.Write(p[:n])
+			_, _ = bc.buf.Write(p[:n])
 		} else {
-			bc.buf.Write(p[:remaining])
+			_, _ = bc.buf.Write(p[:remaining])
 		}
 	}
 	return n, err

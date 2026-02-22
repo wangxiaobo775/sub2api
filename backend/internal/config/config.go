@@ -62,9 +62,10 @@ type Config struct {
 	TokenRefresh TokenRefreshConfig         `mapstructure:"token_refresh"`
 	RunMode      string                     `mapstructure:"run_mode" yaml:"run_mode"`
 	Timezone     string                     `mapstructure:"timezone"` // e.g. "Asia/Shanghai", "UTC"
-	Gemini            GeminiConfig               `mapstructure:"gemini"`
-	Update            UpdateConfig               `mapstructure:"update"`
-	RequestContentLog RequestContentLogConfig    `mapstructure:"request_content_log"`
+
+	Gemini            GeminiConfig            `mapstructure:"gemini"`
+	Update            UpdateConfig            `mapstructure:"update"`
+	RequestContentLog RequestContentLogConfig `mapstructure:"request_content_log"`
 }
 
 type GeminiConfig struct {
