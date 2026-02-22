@@ -131,16 +131,16 @@ type LinuxDoConnectConfig struct {
 type DingTalkOAuthConfig struct {
 	Enabled bool `mapstructure:"enabled"`
 
-	ClientID            string `mapstructure:"client_id"`              // AppKey
-	ClientSecret        string `mapstructure:"client_secret"`          // AppSecret
-	AuthorizeURL        string `mapstructure:"authorize_url"`          // 授权 URL
-	TokenURL            string `mapstructure:"token_url"`              // Token URL
-	UserInfoURL         string `mapstructure:"userinfo_url"`           // UserInfo URL
-	Scopes              string `mapstructure:"scopes"`                 // 默认 "openid"
-	RedirectURL         string `mapstructure:"redirect_url"`           // 后端回调地址
-	FrontendRedirectURL string `mapstructure:"frontend_redirect_url"`  // 前端接收 token 的路由
-	UserInfoNickPath    string `mapstructure:"userinfo_nick_path"`     // 用于从 userinfo JSON 提取昵称的 gjson 路径
-	UserInfoIDPath      string `mapstructure:"userinfo_id_path"`       // 用于从 userinfo JSON 提取用户 ID 的 gjson 路径
+	ClientID            string `mapstructure:"client_id"`
+	ClientSecret        string `mapstructure:"client_secret"`
+	AuthorizeURL        string `mapstructure:"authorize_url"`
+	TokenURL            string `mapstructure:"token_url"`
+	UserInfoURL         string `mapstructure:"userinfo_url"`
+	Scopes              string `mapstructure:"scopes"`
+	RedirectURL         string `mapstructure:"redirect_url"`
+	FrontendRedirectURL string `mapstructure:"frontend_redirect_url"`
+	UserInfoNickPath    string `mapstructure:"userinfo_nick_path"`
+	UserInfoIDPath      string `mapstructure:"userinfo_id_path"`
 }
 
 // TokenRefreshConfig OAuth token自动刷新配置
